@@ -2,6 +2,7 @@
 
 // Crear un elemento style para inyectar/remover el CSS dinámicamente
 const styleId = 'spotify-light-mode-styles';
+const transitionStyleId = 'spotify-light-mode-transitions';
 const correctionClass = 'spotify-lm-corrected';
 let observer = null;
 let debounceTimer = null;
@@ -12,6 +13,28 @@ function debounce(func, delay) {
     clearTimeout(debounceTimer);
     debounceTimer = setTimeout(() => func.apply(this, args), delay);
   };
+}
+
+// Inyectar estilos de transición permanentes
+function injectTransitionStyles() {
+  if (document.getElementById(transitionStyleId)) return;
+
+  if (!document.head) return;
+
+  const transitionStyle = document.createElement('style');
+  transitionStyle.id = transitionStyleId;
+  transitionStyle.textContent = `
+    body {
+      transition: filter 0.2s ease-in-out, background-color 0.2s ease-in-out !important;
+    }
+    img, video {
+      transition: filter 0.2s ease-in-out !important;
+    }
+    .${correctionClass} {
+      transition: filter 0.2s ease-in-out !important;
+    }
+  `;
+  document.head.appendChild(transitionStyle);
 }
 
 // Función para corregir elementos con background-image
@@ -58,18 +81,21 @@ function applyLightMode() {
       return;
     }
 
-  const style = document.createElement('style');
-  style.id = styleId;
-  style.textContent = `
-    body {
-      filter: invert(1) hue-rotate(180deg);
-      background-color: #fff !important;
-    }
-    img, video {
-      filter: invert(1) hue-rotate(180deg);
-    }
-  `;
-  document.head.appendChild(style);
+    // Inyectar estilos de transición permanentes primero
+    injectTransitionStyles();
+
+    const style = document.createElement('style');
+    style.id = styleId;
+    style.textContent = `
+      body {
+        filter: invert(1) hue-rotate(180deg) !important;
+        background-color: #fff !important;
+      }
+      img, video {
+        filter: invert(1) hue-rotate(180deg) !important;
+      }
+    `;
+    document.head.appendChild(style);
 
   // Corregir elementos existentes
   correctBackgroundImages();
@@ -117,9 +143,29 @@ function applyLightMode() {
 // Función para remover el modo claro
 function removeLightMode() {
   try {
+    // Inyectar estilos de transición si no existen
+    injectTransitionStyles();
+
     const style = document.getElementById(styleId);
     if (style) {
-      style.remove();
+      // En lugar de eliminar, cambiar los filtros a 'none' para permitir transición
+      style.textContent = `
+        body {
+          filter: none !important;
+          background-color: transparent !important;
+        }
+        img, video {
+          filter: none !important;
+        }
+      `;
+
+      // Después de la transición, eliminar el estilo completamente
+      setTimeout(() => {
+        const styleToRemove = document.getElementById(styleId);
+        if (styleToRemove) {
+          styleToRemove.remove();
+        }
+      }, 250); // Esperar un poco más que la duración de la transición (0.2s)
     }
 
     // Desconectar el observer
@@ -128,7 +174,7 @@ function removeLightMode() {
       observer = null;
     }
 
-    // Remover correcciones aplicadas
+    // Remover correcciones aplicadas con transición
     removeBackgroundCorrections();
   } catch (error) {
     console.error('Spotify Light Mode: Error removing light mode:', error);
