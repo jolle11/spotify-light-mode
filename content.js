@@ -4,16 +4,31 @@
 const styleId = 'spotify-light-mode-styles';
 const correctionClass = 'spotify-lm-corrected';
 let observer = null;
+let debounceTimer = null;
+
+// Función de debounce para limitar la frecuencia de ejecución
+function debounce(func, delay) {
+  return function(...args) {
+    clearTimeout(debounceTimer);
+    debounceTimer = setTimeout(() => func.apply(this, args), delay);
+  };
+}
 
 // Función para corregir elementos con background-image
 function correctBackgroundImages() {
   const elements = document.querySelectorAll('[style*="background-image"]:not(.' + correctionClass + ')');
-  elements.forEach(el => {
-    el.classList.add(correctionClass);
-    const currentFilter = el.style.filter || '';
-    if (!currentFilter.includes('invert')) {
-      el.style.filter = currentFilter + ' invert(1) hue-rotate(180deg)';
-    }
+
+  // Optimización: usar requestAnimationFrame para evitar bloquear el renderizado
+  if (elements.length === 0) return;
+
+  requestAnimationFrame(() => {
+    elements.forEach(el => {
+      el.classList.add(correctionClass);
+      const currentFilter = el.style.filter || '';
+      if (!currentFilter.includes('invert')) {
+        el.style.filter = (currentFilter + ' invert(1) hue-rotate(180deg)').trim();
+      }
+    });
   });
 }
 
@@ -33,8 +48,15 @@ function removeBackgroundCorrections() {
 
 // Función para aplicar el modo claro
 function applyLightMode() {
-  // Verificar si ya existe el style
-  if (document.getElementById(styleId)) return;
+  try {
+    // Verificar si ya existe el style
+    if (document.getElementById(styleId)) return;
+
+    // Verificar que document.head existe
+    if (!document.head) {
+      console.warn('Spotify Light Mode: document.head not available yet');
+      return;
+    }
 
   const style = document.createElement('style');
   style.id = styleId;
@@ -52,38 +74,76 @@ function applyLightMode() {
   // Corregir elementos existentes
   correctBackgroundImages();
 
+  // Crear versión debounced de la función de corrección
+  const debouncedCorrection = debounce(correctBackgroundImages, 150);
+
   // Observar cambios en el DOM para nuevos elementos
-  observer = new MutationObserver(() => {
-    correctBackgroundImages();
+  // Optimización: solo observar cambios en atributos 'style' y nuevos nodos
+  observer = new MutationObserver((mutations) => {
+    // Verificar si hay cambios relevantes antes de ejecutar
+    const hasRelevantChanges = mutations.some(mutation => {
+      // Si se agregaron nodos nuevos
+      if (mutation.type === 'childList' && mutation.addedNodes.length > 0) {
+        return true;
+      }
+      // Si cambió el atributo style en un elemento
+      if (mutation.type === 'attributes' && mutation.attributeName === 'style') {
+        const target = mutation.target;
+        return target.style.backgroundImage && !target.classList.contains(correctionClass);
+      }
+      return false;
+    });
+
+    if (hasRelevantChanges) {
+      debouncedCorrection();
+    }
   });
 
-  observer.observe(document.body, {
-    childList: true,
-    subtree: true,
-    attributes: true,
-    attributeFilter: ['style']
-  });
+    if (document.body) {
+      observer.observe(document.body, {
+        childList: true,
+        subtree: true,
+        attributes: true,
+        attributeFilter: ['style']
+      });
+    } else {
+      console.warn('Spotify Light Mode: document.body not available for observation');
+    }
+  } catch (error) {
+    console.error('Spotify Light Mode: Error applying light mode:', error);
+  }
 }
 
 // Función para remover el modo claro
 function removeLightMode() {
-  const style = document.getElementById(styleId);
-  if (style) {
-    style.remove();
-  }
+  try {
+    const style = document.getElementById(styleId);
+    if (style) {
+      style.remove();
+    }
 
-  // Desconectar el observer
-  if (observer) {
-    observer.disconnect();
-    observer = null;
-  }
+    // Desconectar el observer
+    if (observer) {
+      observer.disconnect();
+      observer = null;
+    }
 
-  // Remover correcciones aplicadas
-  removeBackgroundCorrections();
+    // Remover correcciones aplicadas
+    removeBackgroundCorrections();
+  } catch (error) {
+    console.error('Spotify Light Mode: Error removing light mode:', error);
+  }
 }
 
 // Cargar el estado inicial al cargar la página
 chrome.storage.sync.get(['lightModeEnabled'], (result) => {
+  if (chrome.runtime.lastError) {
+    console.error('Spotify Light Mode: Error loading state:', chrome.runtime.lastError);
+    // En caso de error, aplicar modo claro por defecto
+    applyLightMode();
+    return;
+  }
+
   const isEnabled = result.lightModeEnabled !== false; // Por defecto activado
   if (isEnabled) {
     applyLightMode();
@@ -94,13 +154,20 @@ chrome.storage.sync.get(['lightModeEnabled'], (result) => {
 
 // Escuchar mensajes del popup para activar/desactivar
 chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
-  if (message.action === 'toggleLightMode') {
-    if (message.enabled) {
-      applyLightMode();
-    } else {
-      removeLightMode();
+  try {
+    if (message && message.action === 'toggleLightMode') {
+      if (message.enabled) {
+        applyLightMode();
+      } else {
+        removeLightMode();
+      }
+      sendResponse({ success: true });
     }
+  } catch (error) {
+    console.error('Spotify Light Mode: Error processing message:', error);
+    sendResponse({ success: false, error: error.message });
   }
+  return true; // Indica que la respuesta será enviada de forma asíncrona
 });
 
 console.log('Spotify Light Mode content script loaded.');

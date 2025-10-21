@@ -5,6 +5,12 @@ const statusDiv = document.getElementById('status');
 
 // Cargar el estado actual al abrir el popup
 chrome.storage.sync.get(['lightModeEnabled'], (result) => {
+  if (chrome.runtime.lastError) {
+    console.error('Error loading state:', chrome.runtime.lastError);
+    updateStatus(false, true);
+    return;
+  }
+
   const isEnabled = result.lightModeEnabled !== false; // Por defecto activado
   toggleSwitch.checked = isEnabled;
   updateStatus(isEnabled);
@@ -14,22 +20,49 @@ chrome.storage.sync.get(['lightModeEnabled'], (result) => {
 toggleSwitch.addEventListener('change', async () => {
   const isEnabled = toggleSwitch.checked;
 
-  // Guardar el estado
-  await chrome.storage.sync.set({ lightModeEnabled: isEnabled });
+  try {
+    // Guardar el estado
+    await chrome.storage.sync.set({ lightModeEnabled: isEnabled });
 
-  // Enviar mensaje a todas las pestañas de Spotify
-  const tabs = await chrome.tabs.query({ url: 'https://open.spotify.com/*' });
-  tabs.forEach(tab => {
-    chrome.tabs.sendMessage(tab.id, {
-      action: 'toggleLightMode',
-      enabled: isEnabled
-    });
-  });
+    // Enviar mensaje a todas las pestañas de Spotify
+    const tabs = await chrome.tabs.query({ url: 'https://open.spotify.com/*' });
 
-  updateStatus(isEnabled);
+    if (tabs.length === 0) {
+      updateStatus(isEnabled, false, 'No hay pestañas de Spotify abiertas');
+      return;
+    }
+
+    // Enviar mensajes con manejo de errores individual por pestaña
+    const messagePromises = tabs.map(tab =>
+      chrome.tabs.sendMessage(tab.id, {
+        action: 'toggleLightMode',
+        enabled: isEnabled
+      }).catch(error => {
+        console.warn(`Error sending message to tab ${tab.id}:`, error);
+        return null;
+      })
+    );
+
+    await Promise.all(messagePromises);
+    updateStatus(isEnabled);
+
+  } catch (error) {
+    console.error('Error toggling light mode:', error);
+    updateStatus(isEnabled, true);
+    // Revertir el toggle si hay error
+    toggleSwitch.checked = !isEnabled;
+  }
 });
 
-function updateStatus(enabled) {
-  statusDiv.textContent = enabled ? 'Activado ✓' : 'Desactivado';
-  statusDiv.style.color = enabled ? '#1db954' : '#888';
+function updateStatus(enabled, hasError = false, customMessage = null) {
+  if (hasError) {
+    statusDiv.textContent = 'Error';
+    statusDiv.style.color = '#e22134';
+  } else if (customMessage) {
+    statusDiv.textContent = customMessage;
+    statusDiv.style.color = '#888';
+  } else {
+    statusDiv.textContent = enabled ? 'Activado ✓' : 'Desactivado';
+    statusDiv.style.color = enabled ? '#1db954' : '#888';
+  }
 }
