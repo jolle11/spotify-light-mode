@@ -25,10 +25,8 @@ function updateIcon(enabled) {
     "128": "icons/icon128-disabled.png"
   };
 
-  // Por ahora usamos el mismo icono, pero esto permite cambiar el icono según el estado
-  // Si no tienes iconos disabled, simplemente no habrá error
-  chrome.action.setIcon({ path }).catch(() => {
-    // Si no existen los iconos disabled, ignorar el error
+  chrome.action.setIcon({ path }).catch((error) => {
+    console.error('Error updating icon:', error);
   });
 }
 
