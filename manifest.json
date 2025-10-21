@@ -1,0 +1,27 @@
+{
+  "manifest_version": 3,
+  "name": "Spotify Light Mode",
+  "version": "2.0",
+  "description": "Transforma la interfaz de Spotify Web a modo claro con toggle activable.",
+  "permissions": [
+    "storage",
+    "tabs"
+  ],
+  "host_permissions": [
+    "https://open.spotify.com/*"
+  ],
+  "action": {
+    "default_popup": "popup.html",
+    "default_title": "Spotify Light Mode"
+  },
+  "background": {
+    "service_worker": "background.js"
+  },
+  "content_scripts": [
+    {
+      "matches": ["https://open.spotify.com/*"],
+      "js": ["content.js"],
+      "run_at": "document_start"
+    }
+  ]
+}
