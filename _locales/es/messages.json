@@ -1,0 +1,38 @@
+{
+  "extensionName": {
+    "message": "Spotify Light Mode",
+    "description": "Nombre de la extensión"
+  },
+  "extensionDescription": {
+    "message": "Transforma la interfaz de Spotify Web a modo claro con toggle activable.",
+    "description": "Descripción de la extensión"
+  },
+  "popupTitle": {
+    "message": "Spotify Light Mode",
+    "description": "Título mostrado en el popup"
+  },
+  "lightModeLabel": {
+    "message": "Modo claro",
+    "description": "Etiqueta para el toggle de modo claro"
+  },
+  "statusEnabled": {
+    "message": "Activado ✓",
+    "description": "Mensaje de estado cuando el modo claro está activado"
+  },
+  "statusDisabled": {
+    "message": "Desactivado",
+    "description": "Mensaje de estado cuando el modo claro está desactivado"
+  },
+  "statusError": {
+    "message": "Error",
+    "description": "Mensaje de estado cuando hay un error"
+  },
+  "statusNoTabs": {
+    "message": "No hay pestañas de Spotify abiertas",
+    "description": "Mensaje de estado cuando no hay pestañas de Spotify"
+  },
+  "statusLoading": {
+    "message": "Cargando...",
+    "description": "Mensaje de estado mientras carga"
+  }
+}

@@ -3,6 +3,11 @@
 const toggleSwitch = document.getElementById('toggleSwitch');
 const statusDiv = document.getElementById('status');
 
+// Cargar textos traducidos
+document.getElementById('popupTitle').textContent = chrome.i18n.getMessage('popupTitle');
+document.getElementById('lightModeLabel').textContent = chrome.i18n.getMessage('lightModeLabel');
+statusDiv.textContent = chrome.i18n.getMessage('statusLoading');
+
 // Cargar el estado actual al abrir el popup
 chrome.storage.sync.get(['lightModeEnabled'], (result) => {
   if (chrome.runtime.lastError) {
@@ -28,7 +33,7 @@ toggleSwitch.addEventListener('change', async () => {
     const tabs = await chrome.tabs.query({ url: 'https://open.spotify.com/*' });
 
     if (tabs.length === 0) {
-      updateStatus(isEnabled, false, 'No hay pestañas de Spotify abiertas');
+      updateStatus(isEnabled, false, chrome.i18n.getMessage('statusNoTabs'));
       return;
     }
 
@@ -56,13 +61,13 @@ toggleSwitch.addEventListener('change', async () => {
 
 function updateStatus(enabled, hasError = false, customMessage = null) {
   if (hasError) {
-    statusDiv.textContent = 'Error';
+    statusDiv.textContent = chrome.i18n.getMessage('statusError');
     statusDiv.style.color = '#e22134';
   } else if (customMessage) {
     statusDiv.textContent = customMessage;
     statusDiv.style.color = '#888';
   } else {
-    statusDiv.textContent = enabled ? 'Activado ✓' : 'Desactivado';
+    statusDiv.textContent = enabled ? chrome.i18n.getMessage('statusEnabled') : chrome.i18n.getMessage('statusDisabled');
     statusDiv.style.color = enabled ? '#1db954' : '#888';
   }
 }

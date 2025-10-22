@@ -1,0 +1,38 @@
+{
+  "extensionName": {
+    "message": "Spotify Light Mode",
+    "description": "Name of the extension"
+  },
+  "extensionDescription": {
+    "message": "Transform Spotify Web interface to light mode with a toggle switch.",
+    "description": "Description of the extension"
+  },
+  "popupTitle": {
+    "message": "Spotify Light Mode",
+    "description": "Title shown in the popup"
+  },
+  "lightModeLabel": {
+    "message": "Light mode",
+    "description": "Label for the light mode toggle"
+  },
+  "statusEnabled": {
+    "message": "Enabled ✓",
+    "description": "Status message when light mode is enabled"
+  },
+  "statusDisabled": {
+    "message": "Disabled",
+    "description": "Status message when light mode is disabled"
+  },
+  "statusError": {
+    "message": "Error",
+    "description": "Status message when there's an error"
+  },
+  "statusNoTabs": {
+    "message": "No Spotify tabs open",
+    "description": "Status message when no Spotify tabs are found"
+  },
+  "statusLoading": {
+    "message": "Loading...",
+    "description": "Status message while loading"
+  }
+}
