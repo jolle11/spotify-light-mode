@@ -34,5 +34,9 @@
   "statusLoading": {
     "message": "Cargando...",
     "description": "Mensaje de estado mientras carga"
+  },
+  "useSystemThemeLabel": {
+    "message": "Seguir tema del sistema",
+    "description": "Etiqueta para el toggle del tema del sistema"
   }
 }

@@ -34,5 +34,9 @@
   "statusLoading": {
     "message": "Loading...",
     "description": "Status message while loading"
+  },
+  "useSystemThemeLabel": {
+    "message": "Follow system theme",
+    "description": "Label for the system theme toggle"
   }
 }

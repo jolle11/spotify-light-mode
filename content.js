@@ -6,6 +6,8 @@ const transitionStyleId = 'spotify-light-mode-transitions';
 const correctionClass = 'spotify-lm-corrected';
 let observer = null;
 let debounceTimer = null;
+let systemThemeListener = null;
+let useSystemTheme = false;
 
 // Función de debounce para limitar la frecuencia de ejecución
 function debounce(func, delay) {
@@ -13,6 +15,50 @@ function debounce(func, delay) {
     clearTimeout(debounceTimer);
     debounceTimer = setTimeout(() => func.apply(this, args), delay);
   };
+}
+
+// Función para detectar si el sistema está en modo oscuro
+function isSystemDarkMode() {
+  return window.matchMedia && window.matchMedia('(prefers-color-scheme: dark)').matches;
+}
+
+// Función para aplicar tema según preferencia del sistema
+function applyThemeBasedOnSystem() {
+  if (!useSystemTheme) return;
+
+  const isDarkMode = isSystemDarkMode();
+  // Si el sistema está en modo claro, aplicamos light mode a Spotify
+  // Si el sistema está en modo oscuro, mantenemos Spotify oscuro
+  if (isDarkMode) {
+    removeLightMode();
+  } else {
+    applyLightMode();
+  }
+}
+
+// Función para iniciar/detener listener del tema del sistema
+function setupSystemThemeListener() {
+  // Remover listener anterior si existe
+  if (systemThemeListener) {
+    const mediaQuery = window.matchMedia('(prefers-color-scheme: dark)');
+    mediaQuery.removeEventListener('change', systemThemeListener);
+    systemThemeListener = null;
+  }
+
+  // Si usamos tema del sistema, añadir listener
+  if (useSystemTheme && window.matchMedia) {
+    const mediaQuery = window.matchMedia('(prefers-color-scheme: dark)');
+    systemThemeListener = (e) => {
+      // Si el sistema está en modo oscuro, mantener Spotify oscuro
+      // Si el sistema está en modo claro, aplicar light mode a Spotify
+      if (e.matches) {
+        removeLightMode();
+      } else {
+        applyLightMode();
+      }
+    };
+    mediaQuery.addEventListener('change', systemThemeListener);
+  }
 }
 
 // Inyectar estilos de transición permanentes
@@ -182,7 +228,7 @@ function removeLightMode() {
 }
 
 // Cargar el estado inicial al cargar la página
-chrome.storage.sync.get(['lightModeEnabled'], (result) => {
+chrome.storage.sync.get(['lightModeEnabled', 'useSystemTheme'], (result) => {
   if (chrome.runtime.lastError) {
     console.error('Spotify Light Mode: Error loading state:', chrome.runtime.lastError);
     // En caso de error, aplicar modo claro por defecto
@@ -190,11 +236,20 @@ chrome.storage.sync.get(['lightModeEnabled'], (result) => {
     return;
   }
 
+  useSystemTheme = result.useSystemTheme === true; // Por defecto desactivado
   const isEnabled = result.lightModeEnabled !== false; // Por defecto activado
-  if (isEnabled) {
-    applyLightMode();
+
+  if (useSystemTheme) {
+    // Seguir el tema del sistema
+    setupSystemThemeListener();
+    applyThemeBasedOnSystem();
   } else {
-    removeLightMode();
+    // Usar preferencia manual
+    if (isEnabled) {
+      applyLightMode();
+    } else {
+      removeLightMode();
+    }
   }
 });
 
@@ -206,6 +261,27 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
         applyLightMode();
       } else {
         removeLightMode();
+      }
+      sendResponse({ success: true });
+    } else if (message && message.action === 'updateSystemThemePreference') {
+      useSystemTheme = message.useSystemTheme;
+
+      if (useSystemTheme) {
+        // Activar listener del sistema y aplicar tema
+        setupSystemThemeListener();
+        applyThemeBasedOnSystem();
+      } else {
+        // Desactivar listener y mantener estado actual del toggle manual
+        setupSystemThemeListener(); // Esto removerá el listener
+        // Leer el estado manual actual
+        chrome.storage.sync.get(['lightModeEnabled'], (result) => {
+          const isEnabled = result.lightModeEnabled !== false;
+          if (isEnabled) {
+            applyLightMode();
+          } else {
+            removeLightMode();
+          }
+        });
       }
       sendResponse({ success: true });
     }

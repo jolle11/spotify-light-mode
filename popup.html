@@ -74,6 +74,13 @@
     input:focus + .slider {
       box-shadow: 0 0 0 3px rgba(29, 185, 84, 0.2);
     }
+    input:disabled + .slider {
+      cursor: not-allowed;
+      opacity: 0.5;
+    }
+    input:disabled + .slider:hover {
+      box-shadow: none;
+    }
     .status {
       font-size: 11px;
       color: #888;
@@ -97,6 +104,13 @@
 </head>
 <body>
   <h3 id="popupTitle"></h3>
+  <div class="toggle-container">
+    <span class="toggle-label" id="useSystemThemeLabel"></span>
+    <label class="switch">
+      <input type="checkbox" id="useSystemThemeSwitch">
+      <span class="slider"></span>
+    </label>
+  </div>
   <div class="toggle-container">
     <span class="toggle-label" id="lightModeLabel"></span>
     <label class="switch">
