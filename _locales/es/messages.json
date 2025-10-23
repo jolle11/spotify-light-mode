@@ -11,17 +11,29 @@
     "message": "Spotify Light Mode",
     "description": "Título mostrado en el popup"
   },
-  "lightModeLabel": {
-    "message": "Modo claro",
-    "description": "Etiqueta para el toggle de modo claro"
+  "themeLightLabel": {
+    "message": "Claro",
+    "description": "Etiqueta para opción de tema claro"
   },
-  "statusEnabled": {
-    "message": "Activado ✓",
-    "description": "Mensaje de estado cuando el modo claro está activado"
+  "themeDarkLabel": {
+    "message": "Oscuro",
+    "description": "Etiqueta para opción de tema oscuro"
   },
-  "statusDisabled": {
-    "message": "Desactivado",
-    "description": "Mensaje de estado cuando el modo claro está desactivado"
+  "themeSepiaLabel": {
+    "message": "Sepia",
+    "description": "Etiqueta para opción de tema sepia"
+  },
+  "statusThemeLight": {
+    "message": "Tema claro activo ✓",
+    "description": "Mensaje de estado cuando el tema claro está activo"
+  },
+  "statusThemeDark": {
+    "message": "Tema oscuro activo ✓",
+    "description": "Mensaje de estado cuando el tema oscuro está activo"
+  },
+  "statusThemeSepia": {
+    "message": "Tema sepia activo ✓",
+    "description": "Mensaje de estado cuando el tema sepia está activo"
   },
   "statusError": {
     "message": "Error",

@@ -1,31 +1,44 @@
-// Popup script para controlar el toggle de Spotify Light Mode
+// Popup script para controlar la selección de temas de Spotify
 
-const toggleSwitch = document.getElementById('toggleSwitch');
 const useSystemThemeSwitch = document.getElementById('useSystemThemeSwitch');
+const themeSelector = document.getElementById('themeSelector');
+const themeOptions = document.querySelectorAll('.theme-option');
 const statusDiv = document.getElementById('status');
 
 // Cargar textos traducidos
 document.getElementById('popupTitle').textContent = chrome.i18n.getMessage('popupTitle');
-document.getElementById('lightModeLabel').textContent = chrome.i18n.getMessage('lightModeLabel');
 document.getElementById('useSystemThemeLabel').textContent = chrome.i18n.getMessage('useSystemThemeLabel');
+document.getElementById('themeLightLabel').textContent = chrome.i18n.getMessage('themeLightLabel');
+document.getElementById('themeDarkLabel').textContent = chrome.i18n.getMessage('themeDarkLabel');
+document.getElementById('themeSepiaLabel').textContent = chrome.i18n.getMessage('themeSepiaLabel');
 statusDiv.textContent = chrome.i18n.getMessage('statusLoading');
 
 // Cargar el estado actual al abrir el popup
-chrome.storage.sync.get(['lightModeEnabled', 'useSystemTheme'], (result) => {
+chrome.storage.sync.get(['selectedTheme', 'useSystemTheme'], (result) => {
   if (chrome.runtime.lastError) {
     console.error('Error loading state:', chrome.runtime.lastError);
-    updateStatus(false, true);
+    updateStatus('light', true);
     return;
   }
 
   const useSystemTheme = result.useSystemTheme === true; // Por defecto desactivado
-  const isEnabled = result.lightModeEnabled !== false; // Por defecto activado
+  const theme = result.selectedTheme || 'light'; // Por defecto light
 
   useSystemThemeSwitch.checked = useSystemTheme;
-  toggleSwitch.checked = isEnabled;
-  toggleSwitch.disabled = useSystemTheme; // Deshabilitar si usamos tema del sistema
 
-  updateStatus(isEnabled);
+  // Marcar el tema activo
+  themeOptions.forEach(option => {
+    const optionTheme = option.getAttribute('data-theme');
+    if (optionTheme === theme) {
+      option.classList.add('active');
+    }
+    // Deshabilitar selector si usamos tema del sistema
+    if (useSystemTheme) {
+      option.classList.add('disabled');
+    }
+  });
+
+  updateStatus(theme);
 });
 
 // Escuchar cambios en el toggle de sistema
@@ -36,8 +49,14 @@ useSystemThemeSwitch.addEventListener('change', async () => {
     // Guardar el estado
     await chrome.storage.sync.set({ useSystemTheme });
 
-    // Habilitar/deshabilitar el toggle manual
-    toggleSwitch.disabled = useSystemTheme;
+    // Habilitar/deshabilitar selector de temas
+    themeOptions.forEach(option => {
+      if (useSystemTheme) {
+        option.classList.add('disabled');
+      } else {
+        option.classList.remove('disabled');
+      }
+    });
 
     // Enviar mensaje a todas las pestañas de Spotify
     const tabs = await chrome.tabs.query({ url: 'https://open.spotify.com/*' });
@@ -63,49 +82,62 @@ useSystemThemeSwitch.addEventListener('change', async () => {
     console.error('Error updating system theme preference:', error);
     // Revertir el toggle si hay error
     useSystemThemeSwitch.checked = !useSystemTheme;
-    toggleSwitch.disabled = !useSystemTheme;
+    themeOptions.forEach(option => {
+      if (!useSystemTheme) {
+        option.classList.add('disabled');
+      } else {
+        option.classList.remove('disabled');
+      }
+    });
   }
 });
 
-// Escuchar cambios en el toggle manual
-toggleSwitch.addEventListener('change', async () => {
-  const isEnabled = toggleSwitch.checked;
+// Escuchar clicks en las opciones de tema
+themeOptions.forEach(option => {
+  option.addEventListener('click', async () => {
+    // Ignorar si está deshabilitado (usando tema del sistema)
+    if (option.classList.contains('disabled')) return;
 
-  try {
-    // Guardar el estado
-    await chrome.storage.sync.set({ lightModeEnabled: isEnabled });
+    const selectedTheme = option.getAttribute('data-theme');
 
-    // Enviar mensaje a todas las pestañas de Spotify
-    const tabs = await chrome.tabs.query({ url: 'https://open.spotify.com/*' });
+    try {
+      // Guardar el tema seleccionado
+      await chrome.storage.sync.set({ selectedTheme });
 
-    if (tabs.length === 0) {
-      updateStatus(isEnabled, false, chrome.i18n.getMessage('statusNoTabs'));
-      return;
+      // Actualizar UI
+      themeOptions.forEach(opt => opt.classList.remove('active'));
+      option.classList.add('active');
+
+      // Enviar mensaje a todas las pestañas de Spotify
+      const tabs = await chrome.tabs.query({ url: 'https://open.spotify.com/*' });
+
+      if (tabs.length === 0) {
+        updateStatus(selectedTheme, false, chrome.i18n.getMessage('statusNoTabs'));
+        return;
+      }
+
+      // Enviar mensajes con manejo de errores individual por pestaña
+      const messagePromises = tabs.map(tab =>
+        chrome.tabs.sendMessage(tab.id, {
+          action: 'changeTheme',
+          theme: selectedTheme
+        }).catch(error => {
+          console.warn(`Error sending message to tab ${tab.id}:`, error);
+          return null;
+        })
+      );
+
+      await Promise.all(messagePromises);
+      updateStatus(selectedTheme);
+
+    } catch (error) {
+      console.error('Error changing theme:', error);
+      updateStatus(selectedTheme, true);
     }
-
-    // Enviar mensajes con manejo de errores individual por pestaña
-    const messagePromises = tabs.map(tab =>
-      chrome.tabs.sendMessage(tab.id, {
-        action: 'toggleLightMode',
-        enabled: isEnabled
-      }).catch(error => {
-        console.warn(`Error sending message to tab ${tab.id}:`, error);
-        return null;
-      })
-    );
-
-    await Promise.all(messagePromises);
-    updateStatus(isEnabled);
-
-  } catch (error) {
-    console.error('Error toggling light mode:', error);
-    updateStatus(isEnabled, true);
-    // Revertir el toggle si hay error
-    toggleSwitch.checked = !isEnabled;
-  }
+  });
 });
 
-function updateStatus(enabled, hasError = false, customMessage = null) {
+function updateStatus(theme, hasError = false, customMessage = null) {
   if (hasError) {
     statusDiv.textContent = chrome.i18n.getMessage('statusError');
     statusDiv.style.color = '#e22134';
@@ -113,7 +145,12 @@ function updateStatus(enabled, hasError = false, customMessage = null) {
     statusDiv.textContent = customMessage;
     statusDiv.style.color = '#888';
   } else {
-    statusDiv.textContent = enabled ? chrome.i18n.getMessage('statusEnabled') : chrome.i18n.getMessage('statusDisabled');
-    statusDiv.style.color = enabled ? '#1db954' : '#888';
+    const themeMessages = {
+      light: chrome.i18n.getMessage('statusThemeLight'),
+      dark: chrome.i18n.getMessage('statusThemeDark'),
+      sepia: chrome.i18n.getMessage('statusThemeSepia')
+    };
+    statusDiv.textContent = themeMessages[theme] || theme;
+    statusDiv.style.color = '#1db954';
   }
 }

@@ -24,6 +24,44 @@
       font-size: 13px;
       color: #555;
     }
+    .theme-selector {
+      display: flex;
+      gap: 8px;
+      margin-bottom: 10px;
+    }
+    .theme-option {
+      flex: 1;
+      padding: 8px;
+      border: 2px solid #ddd;
+      border-radius: 8px;
+      cursor: pointer;
+      text-align: center;
+      font-size: 12px;
+      transition: all 0.2s ease;
+      background-color: #fff;
+    }
+    .theme-option:hover {
+      border-color: #1db954;
+      box-shadow: 0 2px 8px rgba(29, 185, 84, 0.2);
+    }
+    .theme-option.active {
+      border-color: #1db954;
+      background-color: #e8f5e9;
+      font-weight: 600;
+    }
+    .theme-option.disabled {
+      opacity: 0.5;
+      cursor: not-allowed;
+    }
+    .theme-option.disabled:hover {
+      border-color: #ddd;
+      box-shadow: none;
+    }
+    .theme-icon {
+      font-size: 18px;
+      display: block;
+      margin-bottom: 4px;
+    }
     .switch {
       position: relative;
       display: inline-block;
@@ -111,12 +149,19 @@
       <span class="slider"></span>
     </label>
   </div>
-  <div class="toggle-container">
-    <span class="toggle-label" id="lightModeLabel"></span>
-    <label class="switch">
-      <input type="checkbox" id="toggleSwitch">
-      <span class="slider"></span>
-    </label>
+  <div class="theme-selector" id="themeSelector">
+    <div class="theme-option" data-theme="light">
+      <span class="theme-icon">☀️</span>
+      <span id="themeLightLabel">Light</span>
+    </div>
+    <div class="theme-option" data-theme="dark">
+      <span class="theme-icon">🌙</span>
+      <span id="themeDarkLabel">Dark</span>
+    </div>
+    <div class="theme-option" data-theme="sepia">
+      <span class="theme-icon">📜</span>
+      <span id="themeSepiaLabel">Sepia</span>
+    </div>
   </div>
   <div class="status" id="status"></div>
   <script src="popup.js"></script>

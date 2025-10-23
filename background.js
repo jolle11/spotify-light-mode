@@ -3,8 +3,8 @@
 // Al instalar la extensión, establecer el estado por defecto
 chrome.runtime.onInstalled.addListener(async (details) => {
   // Establecer estado por defecto
-  chrome.storage.sync.set({ lightModeEnabled: true });
-  updateIcon(true);
+  chrome.storage.sync.set({ selectedTheme: 'light' });
+  updateIcon('light');
 
   // Si es una instalación o actualización, inyectar el script en pestañas existentes
   if (details.reason === 'install' || details.reason === 'update') {
@@ -14,14 +14,16 @@ chrome.runtime.onInstalled.addListener(async (details) => {
 
 // Escuchar cambios en el storage para actualizar el icono
 chrome.storage.onChanged.addListener((changes, namespace) => {
-  if (namespace === 'sync' && changes.lightModeEnabled) {
-    updateIcon(changes.lightModeEnabled.newValue);
+  if (namespace === 'sync' && changes.selectedTheme) {
+    updateIcon(changes.selectedTheme.newValue);
   }
 });
 
-// Actualizar el icono según el estado
-function updateIcon(enabled) {
-  const path = enabled ? {
+// Actualizar el icono según el tema
+function updateIcon(theme) {
+  // Usar icono normal para light y sepia, disabled para dark
+  const isActive = theme !== 'dark';
+  const path = isActive ? {
     "16": "icons/icon16.png",
     "48": "icons/icon48.png",
     "128": "icons/icon128.png"
@@ -37,9 +39,9 @@ function updateIcon(enabled) {
 }
 
 // Inicializar el icono al cargar
-chrome.storage.sync.get(['lightModeEnabled'], (result) => {
-  const isEnabled = result.lightModeEnabled !== false;
-  updateIcon(isEnabled);
+chrome.storage.sync.get(['selectedTheme'], (result) => {
+  const theme = result.selectedTheme || 'light';
+  updateIcon(theme);
 });
 
 // Función para inyectar el content script en pestañas existentes

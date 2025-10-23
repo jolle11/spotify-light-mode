@@ -1,13 +1,33 @@
-// Content script para aplicar/remover dinámicamente el modo claro en Spotify
+// Content script para aplicar/remover dinámicamente temas en Spotify
 
 // Crear un elemento style para inyectar/remover el CSS dinámicamente
-const styleId = 'spotify-light-mode-styles';
-const transitionStyleId = 'spotify-light-mode-transitions';
-const correctionClass = 'spotify-lm-corrected';
+const styleId = 'spotify-theme-styles';
+const transitionStyleId = 'spotify-theme-transitions';
+const correctionClass = 'spotify-theme-corrected';
 let observer = null;
 let debounceTimer = null;
 let systemThemeListener = null;
 let useSystemTheme = false;
+let currentTheme = 'light'; // 'light', 'dark', 'sepia'
+
+// Definición de temas
+const themes = {
+  light: {
+    bodyFilter: 'invert(1) hue-rotate(180deg)',
+    mediaFilter: 'invert(1) hue-rotate(180deg)',
+    backgroundColor: '#fff'
+  },
+  dark: {
+    bodyFilter: 'none',
+    mediaFilter: 'none',
+    backgroundColor: 'transparent'
+  },
+  sepia: {
+    bodyFilter: 'sepia(0.9) hue-rotate(15deg) saturate(0.8)',
+    mediaFilter: 'sepia(0) hue-rotate(0deg) saturate(1)',
+    backgroundColor: '#f4ecd8'
+  }
+};
 
 // Función de debounce para limitar la frecuencia de ejecución
 function debounce(func, delay) {
@@ -30,9 +50,9 @@ function applyThemeBasedOnSystem() {
   // Si el sistema está en modo claro, aplicamos light mode a Spotify
   // Si el sistema está en modo oscuro, mantenemos Spotify oscuro
   if (isDarkMode) {
-    removeLightMode();
+    applyTheme('dark');
   } else {
-    applyLightMode();
+    applyTheme('light');
   }
 }
 
@@ -52,9 +72,9 @@ function setupSystemThemeListener() {
       // Si el sistema está en modo oscuro, mantener Spotify oscuro
       // Si el sistema está en modo claro, aplicar light mode a Spotify
       if (e.matches) {
-        removeLightMode();
+        applyTheme('dark');
       } else {
-        applyLightMode();
+        applyTheme('light');
       }
     };
     mediaQuery.addEventListener('change', systemThemeListener);
@@ -83,20 +103,28 @@ function injectTransitionStyles() {
   document.head.appendChild(transitionStyle);
 }
 
-// Función para corregir elementos con background-image
-function correctBackgroundImages() {
+// Función para corregir elementos con background-image según el tema
+function correctBackgroundImages(theme) {
   const elements = document.querySelectorAll('[style*="background-image"]:not(.' + correctionClass + ')');
 
   // Optimización: usar requestAnimationFrame para evitar bloquear el renderizado
   if (elements.length === 0) return;
 
+  const themeConfig = themes[theme];
+  if (!themeConfig) return;
+
   requestAnimationFrame(() => {
     elements.forEach(el => {
       el.classList.add(correctionClass);
       const currentFilter = el.style.filter || '';
-      if (!currentFilter.includes('invert')) {
+
+      // Aplicar el filtro correspondiente al tema
+      if (theme === 'light' && !currentFilter.includes('invert')) {
         el.style.filter = (currentFilter + ' invert(1) hue-rotate(180deg)').trim();
+      } else if (theme === 'sepia' && !currentFilter.includes('sepia')) {
+        el.style.filter = (currentFilter + ' ' + themeConfig.mediaFilter).trim();
       }
+      // Para dark theme no aplicamos filtro adicional
     });
   });
 }
@@ -106,8 +134,10 @@ function removeBackgroundCorrections() {
   const elements = document.querySelectorAll('.' + correctionClass);
   elements.forEach(el => {
     el.classList.remove(correctionClass);
+    // Remover todos los filtros que hayamos aplicado
     el.style.filter = el.style.filter
       .replace(/invert\(1\)\s*hue-rotate\(180deg\)/g, '')
+      .replace(/sepia\([^)]*\)\s*hue-rotate\([^)]*\)\s*saturate\([^)]*\)/g, '')
       .trim();
     if (!el.style.filter) {
       el.style.removeProperty('filter');
@@ -115,86 +145,38 @@ function removeBackgroundCorrections() {
   });
 }
 
-// Función para aplicar el modo claro
-function applyLightMode() {
+// Función para aplicar un tema
+function applyTheme(theme) {
   try {
-    // Verificar si ya existe el style
-    if (document.getElementById(styleId)) return;
+    currentTheme = theme;
+    const themeConfig = themes[theme];
+
+    if (!themeConfig) {
+      console.warn('Spotify Theme: Unknown theme:', theme);
+      return;
+    }
 
     // Verificar que document.head existe
     if (!document.head) {
-      console.warn('Spotify Light Mode: document.head not available yet');
+      console.warn('Spotify Theme: document.head not available yet');
       return;
     }
 
     // Inyectar estilos de transición permanentes primero
     injectTransitionStyles();
 
-    const style = document.createElement('style');
-    style.id = styleId;
-    style.textContent = `
-      body {
-        filter: invert(1) hue-rotate(180deg) !important;
-        background-color: #fff !important;
-      }
-      img, video {
-        filter: invert(1) hue-rotate(180deg) !important;
-      }
-    `;
-    document.head.appendChild(style);
+    // Obtener o crear el elemento de estilo
+    let style = document.getElementById(styleId);
+    const isNewStyle = !style;
 
-  // Corregir elementos existentes
-  correctBackgroundImages();
-
-  // Crear versión debounced de la función de corrección
-  const debouncedCorrection = debounce(correctBackgroundImages, 150);
-
-  // Observar cambios en el DOM para nuevos elementos
-  // Optimización: solo observar cambios en atributos 'style' y nuevos nodos
-  observer = new MutationObserver((mutations) => {
-    // Verificar si hay cambios relevantes antes de ejecutar
-    const hasRelevantChanges = mutations.some(mutation => {
-      // Si se agregaron nodos nuevos
-      if (mutation.type === 'childList' && mutation.addedNodes.length > 0) {
-        return true;
-      }
-      // Si cambió el atributo style en un elemento
-      if (mutation.type === 'attributes' && mutation.attributeName === 'style') {
-        const target = mutation.target;
-        return target.style.backgroundImage && !target.classList.contains(correctionClass);
-      }
-      return false;
-    });
-
-    if (hasRelevantChanges) {
-      debouncedCorrection();
+    if (isNewStyle) {
+      style = document.createElement('style');
+      style.id = styleId;
     }
-  });
 
-    if (document.body) {
-      observer.observe(document.body, {
-        childList: true,
-        subtree: true,
-        attributes: true,
-        attributeFilter: ['style']
-      });
-    } else {
-      console.warn('Spotify Light Mode: document.body not available for observation');
-    }
-  } catch (error) {
-    console.error('Spotify Light Mode: Error applying light mode:', error);
-  }
-}
-
-// Función para remover el modo claro
-function removeLightMode() {
-  try {
-    // Inyectar estilos de transición si no existen
-    injectTransitionStyles();
-
-    const style = document.getElementById(styleId);
-    if (style) {
-      // En lugar de eliminar, cambiar los filtros a 'none' para permitir transición
+    // Aplicar los estilos del tema
+    if (theme === 'dark') {
+      // Para tema oscuro, remover filtros
       style.textContent = `
         body {
           filter: none !important;
@@ -205,63 +187,111 @@ function removeLightMode() {
         }
       `;
 
-      // Después de la transición, eliminar el estilo completamente
-      setTimeout(() => {
-        const styleToRemove = document.getElementById(styleId);
-        if (styleToRemove) {
-          styleToRemove.remove();
+      // Si es tema oscuro, desconectar observer y limpiar correcciones
+      if (observer) {
+        observer.disconnect();
+        observer = null;
+      }
+      removeBackgroundCorrections();
+
+      // Eliminar el estilo después de la transición
+      if (!isNewStyle) {
+        setTimeout(() => {
+          const styleToRemove = document.getElementById(styleId);
+          if (styleToRemove) {
+            styleToRemove.remove();
+          }
+        }, 250);
+      }
+
+      return;
+    }
+
+    // Para temas que requieren filtros (light, sepia)
+    style.textContent = `
+      body {
+        filter: ${themeConfig.bodyFilter} !important;
+        background-color: ${themeConfig.backgroundColor} !important;
+      }
+      img, video {
+        filter: ${themeConfig.mediaFilter} !important;
+      }
+    `;
+
+    if (isNewStyle) {
+      document.head.appendChild(style);
+    }
+
+    // Corregir elementos existentes con background-image
+    correctBackgroundImages(theme);
+
+    // Configurar observer si no existe
+    if (!observer) {
+      // Crear versión debounced de la función de corrección
+      const debouncedCorrection = debounce(() => correctBackgroundImages(currentTheme), 150);
+
+      observer = new MutationObserver((mutations) => {
+        const hasRelevantChanges = mutations.some(mutation => {
+          if (mutation.type === 'childList' && mutation.addedNodes.length > 0) {
+            return true;
+          }
+          if (mutation.type === 'attributes' && mutation.attributeName === 'style') {
+            const target = mutation.target;
+            return target.style.backgroundImage && !target.classList.contains(correctionClass);
+          }
+          return false;
+        });
+
+        if (hasRelevantChanges) {
+          debouncedCorrection();
         }
-      }, 250); // Esperar un poco más que la duración de la transición (0.2s)
-    }
+      });
 
-    // Desconectar el observer
-    if (observer) {
-      observer.disconnect();
-      observer = null;
+      if (document.body) {
+        observer.observe(document.body, {
+          childList: true,
+          subtree: true,
+          attributes: true,
+          attributeFilter: ['style']
+        });
+      }
+    } else {
+      // Si ya existe, solo actualizar las correcciones de background
+      removeBackgroundCorrections();
+      correctBackgroundImages(theme);
     }
-
-    // Remover correcciones aplicadas con transición
-    removeBackgroundCorrections();
   } catch (error) {
-    console.error('Spotify Light Mode: Error removing light mode:', error);
+    console.error('Spotify Theme: Error applying theme:', error);
   }
 }
 
 // Cargar el estado inicial al cargar la página
-chrome.storage.sync.get(['lightModeEnabled', 'useSystemTheme'], (result) => {
+chrome.storage.sync.get(['selectedTheme', 'useSystemTheme'], (result) => {
   if (chrome.runtime.lastError) {
-    console.error('Spotify Light Mode: Error loading state:', chrome.runtime.lastError);
+    console.error('Spotify Theme: Error loading state:', chrome.runtime.lastError);
     // En caso de error, aplicar modo claro por defecto
-    applyLightMode();
+    applyTheme('light');
     return;
   }
 
   useSystemTheme = result.useSystemTheme === true; // Por defecto desactivado
-  const isEnabled = result.lightModeEnabled !== false; // Por defecto activado
+  const theme = result.selectedTheme || 'light'; // Por defecto light
 
   if (useSystemTheme) {
     // Seguir el tema del sistema
     setupSystemThemeListener();
     applyThemeBasedOnSystem();
   } else {
-    // Usar preferencia manual
-    if (isEnabled) {
-      applyLightMode();
-    } else {
-      removeLightMode();
-    }
+    // Usar tema seleccionado manualmente
+    applyTheme(theme);
   }
 });
 
-// Escuchar mensajes del popup para activar/desactivar
+// Escuchar mensajes del popup para cambiar tema
 chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
   try {
-    if (message && message.action === 'toggleLightMode') {
-      if (message.enabled) {
-        applyLightMode();
-      } else {
-        removeLightMode();
-      }
+    if (message && message.action === 'changeTheme') {
+      applyTheme(message.theme);
       sendResponse({ success: true });
     } else if (message && message.action === 'updateSystemThemePreference') {
       useSystemTheme = message.useSystemTheme;
@@ -271,26 +301,22 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
         setupSystemThemeListener();
         applyThemeBasedOnSystem();
       } else {
-        // Desactivar listener y mantener estado actual del toggle manual
+        // Desactivar listener y mantener tema seleccionado manualmente
         setupSystemThemeListener(); // Esto removerá el listener
-        // Leer el estado manual actual
-        chrome.storage.sync.get(['lightModeEnabled'], (result) => {
-          const isEnabled = result.lightModeEnabled !== false;
-          if (isEnabled) {
-            applyLightMode();
-          } else {
-            removeLightMode();
-          }
+        // Leer el tema manual actual
+        chrome.storage.sync.get(['selectedTheme'], (result) => {
+          const theme = result.selectedTheme || 'light';
+          applyTheme(theme);
         });
       }
       sendResponse({ success: true });
     }
   } catch (error) {
-    console.error('Spotify Light Mode: Error processing message:', error);
+    console.error('Spotify Theme: Error processing message:', error);
     sendResponse({ success: false, error: error.message });
   }
   return true; // Indica que la respuesta será enviada de forma asíncrona
 });
 
-console.log('Spotify Light Mode content script loaded.');
+console.log('Spotify Theme content script loaded.');
 

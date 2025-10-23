@@ -11,17 +11,29 @@
     "message": "Spotify Light Mode",
     "description": "Title shown in the popup"
   },
-  "lightModeLabel": {
-    "message": "Light mode",
-    "description": "Label for the light mode toggle"
+  "themeLightLabel": {
+    "message": "Light",
+    "description": "Label for light theme option"
   },
-  "statusEnabled": {
-    "message": "Enabled ✓",
-    "description": "Status message when light mode is enabled"
+  "themeDarkLabel": {
+    "message": "Dark",
+    "description": "Label for dark theme option"
   },
-  "statusDisabled": {
-    "message": "Disabled",
-    "description": "Status message when light mode is disabled"
+  "themeSepiaLabel": {
+    "message": "Sepia",
+    "description": "Label for sepia theme option"
+  },
+  "statusThemeLight": {
+    "message": "Light theme active ✓",
+    "description": "Status message when light theme is active"
+  },
+  "statusThemeDark": {
+    "message": "Dark theme active ✓",
+    "description": "Status message when dark theme is active"
+  },
+  "statusThemeSepia": {
+    "message": "Sepia theme active ✓",
+    "description": "Status message when sepia theme is active"
   },
   "statusError": {
     "message": "Error",
