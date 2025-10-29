@@ -1,5 +1,26 @@
 // Popup script para controlar la selección de temas de Spotify
 
+// Función para aplicar tema del sistema al popup
+function applySystemThemeToPopup() {
+  const isDarkMode = window.matchMedia && window.matchMedia('(prefers-color-scheme: dark)').matches;
+  if (isDarkMode) {
+    document.body.classList.add('dark-mode');
+  } else {
+    document.body.classList.remove('dark-mode');
+  }
+}
+
+// Aplicar tema del sistema al cargar
+applySystemThemeToPopup();
+
+// Escuchar cambios en el tema del sistema
+if (window.matchMedia) {
+  const darkModeQuery = window.matchMedia('(prefers-color-scheme: dark)');
+  darkModeQuery.addEventListener('change', (e) => {
+    applySystemThemeToPopup();
+  });
+}
+
 const useSystemThemeSwitch = document.getElementById('useSystemThemeSwitch');
 const themeSelector = document.getElementById('themeSelector');
 const themeOptions = document.querySelectorAll('.theme-option');
