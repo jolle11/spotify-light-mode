@@ -4,7 +4,7 @@
   <meta charset="UTF-8">
   <style>
     body {
-      width: 240px;
+      width: 260px;
       padding: 15px;
       font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
       margin: 0;
@@ -26,9 +26,16 @@
     }
     .theme-selector {
       display: grid;
-      grid-template-columns: repeat(2, 1fr);
+      grid-template-columns: repeat(3, 1fr);
       gap: 8px;
       margin-bottom: 10px;
+    }
+    .theme-option:nth-child(4),
+    .theme-option:nth-child(5) {
+      grid-column: span 1;
+    }
+    .theme-option:nth-child(5) {
+      grid-column: 2 / 3;
     }
     .theme-option {
       padding: 8px;
@@ -165,6 +172,10 @@
     <div class="theme-option" data-theme="highContrast">
       <span class="theme-icon">⚡</span>
       <span id="themeHighContrastLabel">High Contrast</span>
+    </div>
+    <div class="theme-option" data-theme="vintage">
+      <span class="theme-icon">📻</span>
+      <span id="themeVintageLabel">Vintage</span>
     </div>
   </div>
   <div class="status" id="status"></div>

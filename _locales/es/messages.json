@@ -27,6 +27,10 @@
     "message": "Alto Contraste",
     "description": "Etiqueta para opción de tema alto contraste"
   },
+  "themeVintageLabel": {
+    "message": "Vintage",
+    "description": "Etiqueta para opción de tema vintage"
+  },
   "statusThemeLight": {
     "message": "Tema claro activo ✓",
     "description": "Mensaje de estado cuando el tema claro está activo"
@@ -42,6 +46,10 @@
   "statusThemeHighContrast": {
     "message": "Tema alto contraste activo ✓",
     "description": "Mensaje de estado cuando el tema alto contraste está activo"
+  },
+  "statusThemeVintage": {
+    "message": "Tema vintage activo ✓",
+    "description": "Mensaje de estado cuando el tema vintage está activo"
   },
   "statusError": {
     "message": "Error",

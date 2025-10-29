@@ -12,6 +12,7 @@ document.getElementById('themeLightLabel').textContent = chrome.i18n.getMessage(
 document.getElementById('themeDarkLabel').textContent = chrome.i18n.getMessage('themeDarkLabel');
 document.getElementById('themeSepiaLabel').textContent = chrome.i18n.getMessage('themeSepiaLabel');
 document.getElementById('themeHighContrastLabel').textContent = chrome.i18n.getMessage('themeHighContrastLabel');
+document.getElementById('themeVintageLabel').textContent = chrome.i18n.getMessage('themeVintageLabel');
 statusDiv.textContent = chrome.i18n.getMessage('statusLoading');
 
 // Cargar el estado actual al abrir el popup
@@ -150,7 +151,8 @@ function updateStatus(theme, hasError = false, customMessage = null) {
       light: chrome.i18n.getMessage('statusThemeLight'),
       dark: chrome.i18n.getMessage('statusThemeDark'),
       sepia: chrome.i18n.getMessage('statusThemeSepia'),
-      highContrast: chrome.i18n.getMessage('statusThemeHighContrast')
+      highContrast: chrome.i18n.getMessage('statusThemeHighContrast'),
+      vintage: chrome.i18n.getMessage('statusThemeVintage')
     };
     statusDiv.textContent = themeMessages[theme] || theme;
     statusDiv.style.color = '#1db954';

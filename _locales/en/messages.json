@@ -27,6 +27,10 @@
     "message": "High Contrast",
     "description": "Label for high contrast theme option"
   },
+  "themeVintageLabel": {
+    "message": "Vintage",
+    "description": "Label for vintage theme option"
+  },
   "statusThemeLight": {
     "message": "Light theme active ✓",
     "description": "Status message when light theme is active"
@@ -42,6 +46,10 @@
   "statusThemeHighContrast": {
     "message": "High contrast theme active ✓",
     "description": "Status message when high contrast theme is active"
+  },
+  "statusThemeVintage": {
+    "message": "Vintage theme active ✓",
+    "description": "Status message when vintage theme is active"
   },
   "statusError": {
     "message": "Error",
