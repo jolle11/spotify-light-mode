@@ -52,7 +52,7 @@ chrome.storage.sync.get(['selectedTheme', 'useSystemTheme'], (result) => {
   // Marcar el tema activo
   themeOptions.forEach(option => {
     const optionTheme = option.getAttribute('data-theme');
-    if (optionTheme === theme) {
+    if (optionTheme === theme && !useSystemTheme) {
       option.classList.add('active');
     }
     // Deshabilitar selector si usamos tema del sistema
@@ -61,7 +61,12 @@ chrome.storage.sync.get(['selectedTheme', 'useSystemTheme'], (result) => {
     }
   });
 
-  updateStatus(theme);
+  // Actualizar status según si usamos tema del sistema o no
+  if (useSystemTheme) {
+    updateStatus(null, false, chrome.i18n.getMessage('statusSystemTheme'));
+  } else {
+    updateStatus(theme);
+  }
 });
 
 // Escuchar cambios en el toggle de sistema
@@ -72,14 +77,33 @@ useSystemThemeSwitch.addEventListener('change', async () => {
     // Guardar el estado
     await chrome.storage.sync.set({ useSystemTheme });
 
-    // Habilitar/deshabilitar selector de temas
+    // Si activamos tema del sistema, obtener tema actual para actualizar UI
+    let selectedTheme = 'light';
+    if (!useSystemTheme) {
+      const result = await chrome.storage.sync.get(['selectedTheme']);
+      selectedTheme = result.selectedTheme || 'light';
+    }
+
+    // Habilitar/deshabilitar selector de temas y quitar active
     themeOptions.forEach(option => {
       if (useSystemTheme) {
         option.classList.add('disabled');
+        option.classList.remove('active');
       } else {
         option.classList.remove('disabled');
+        // Volver a marcar el tema seleccionado como activo
+        if (option.getAttribute('data-theme') === selectedTheme) {
+          option.classList.add('active');
+        }
       }
     });
+
+    // Actualizar status
+    if (useSystemTheme) {
+      updateStatus(null, false, chrome.i18n.getMessage('statusSystemTheme'));
+    } else {
+      updateStatus(selectedTheme);
+    }
 
     // Enviar mensaje a todas las pestañas de Spotify
     const tabs = await chrome.tabs.query({ url: 'https://open.spotify.com/*' });

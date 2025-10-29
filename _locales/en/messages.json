@@ -51,6 +51,10 @@
     "message": "Vintage theme active ✓",
     "description": "Status message when vintage theme is active"
   },
+  "statusSystemTheme": {
+    "message": "Following system theme ✓",
+    "description": "Status message when following system theme"
+  },
   "statusError": {
     "message": "Error",
     "description": "Status message when there's an error"

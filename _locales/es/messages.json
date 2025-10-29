@@ -51,6 +51,10 @@
     "message": "Tema vintage activo ✓",
     "description": "Mensaje de estado cuando el tema vintage está activo"
   },
+  "statusSystemTheme": {
+    "message": "Siguiendo tema del sistema ✓",
+    "description": "Mensaje de estado cuando se sigue el tema del sistema"
+  },
   "statusError": {
     "message": "Error",
     "description": "Mensaje de estado cuando hay un error"
