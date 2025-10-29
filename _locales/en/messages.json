@@ -23,6 +23,10 @@
     "message": "Sepia",
     "description": "Label for sepia theme option"
   },
+  "themeHighContrastLabel": {
+    "message": "High Contrast",
+    "description": "Label for high contrast theme option"
+  },
   "statusThemeLight": {
     "message": "Light theme active ✓",
     "description": "Status message when light theme is active"
@@ -34,6 +38,10 @@
   "statusThemeSepia": {
     "message": "Sepia theme active ✓",
     "description": "Status message when sepia theme is active"
+  },
+  "statusThemeHighContrast": {
+    "message": "High contrast theme active ✓",
+    "description": "Status message when high contrast theme is active"
   },
   "statusError": {
     "message": "Error",

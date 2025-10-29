@@ -26,6 +26,11 @@ const themes = {
     bodyFilter: 'sepia(0.9) hue-rotate(15deg) saturate(0.8)',
     mediaFilter: 'sepia(0) hue-rotate(0deg) saturate(1)',
     backgroundColor: '#f4ecd8'
+  },
+  highContrast: {
+    bodyFilter: 'invert(1) hue-rotate(180deg) contrast(1.5) saturate(1.3)',
+    mediaFilter: 'invert(1) hue-rotate(180deg)',
+    backgroundColor: '#fff'
   }
 };
 
@@ -120,6 +125,8 @@ function correctBackgroundImages(theme) {
 
       // Aplicar el filtro correspondiente al tema
       if (theme === 'light' && !currentFilter.includes('invert')) {
+        el.style.filter = (currentFilter + ' invert(1) hue-rotate(180deg)').trim();
+      } else if (theme === 'highContrast' && !currentFilter.includes('invert')) {
         el.style.filter = (currentFilter + ' invert(1) hue-rotate(180deg)').trim();
       } else if (theme === 'sepia' && !currentFilter.includes('sepia')) {
         el.style.filter = (currentFilter + ' ' + themeConfig.mediaFilter).trim();

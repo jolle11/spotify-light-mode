@@ -23,6 +23,10 @@
     "message": "Sepia",
     "description": "Etiqueta para opción de tema sepia"
   },
+  "themeHighContrastLabel": {
+    "message": "Alto Contraste",
+    "description": "Etiqueta para opción de tema alto contraste"
+  },
   "statusThemeLight": {
     "message": "Tema claro activo ✓",
     "description": "Mensaje de estado cuando el tema claro está activo"
@@ -34,6 +38,10 @@
   "statusThemeSepia": {
     "message": "Tema sepia activo ✓",
     "description": "Mensaje de estado cuando el tema sepia está activo"
+  },
+  "statusThemeHighContrast": {
+    "message": "Tema alto contraste activo ✓",
+    "description": "Mensaje de estado cuando el tema alto contraste está activo"
   },
   "statusError": {
     "message": "Error",
