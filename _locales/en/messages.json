@@ -1,74 +1,78 @@
 {
-  "extensionName": {
-    "message": "Spotify Light Mode",
-    "description": "Name of the extension"
-  },
-  "extensionDescription": {
-    "message": "Transform Spotify Web interface to light mode with a toggle switch.",
-    "description": "Description of the extension"
-  },
-  "popupTitle": {
-    "message": "Spotify Light Mode",
-    "description": "Title shown in the popup"
-  },
-  "themeLightLabel": {
-    "message": "Light",
-    "description": "Label for light theme option"
-  },
-  "themeDarkLabel": {
-    "message": "Dark",
-    "description": "Label for dark theme option"
-  },
-  "themeSepiaLabel": {
-    "message": "Sepia",
-    "description": "Label for sepia theme option"
-  },
-  "themeHighContrastLabel": {
-    "message": "High Contrast",
-    "description": "Label for high contrast theme option"
-  },
-  "themeVintageLabel": {
-    "message": "Vintage",
-    "description": "Label for vintage theme option"
-  },
-  "statusThemeLight": {
-    "message": "Light theme active ✓",
-    "description": "Status message when light theme is active"
-  },
-  "statusThemeDark": {
-    "message": "Dark theme active ✓",
-    "description": "Status message when dark theme is active"
-  },
-  "statusThemeSepia": {
-    "message": "Sepia theme active ✓",
-    "description": "Status message when sepia theme is active"
-  },
-  "statusThemeHighContrast": {
-    "message": "High contrast theme active ✓",
-    "description": "Status message when high contrast theme is active"
-  },
-  "statusThemeVintage": {
-    "message": "Vintage theme active ✓",
-    "description": "Status message when vintage theme is active"
-  },
-  "statusSystemTheme": {
-    "message": "Following system theme ✓",
-    "description": "Status message when following system theme"
-  },
-  "statusError": {
-    "message": "Error",
-    "description": "Status message when there's an error"
-  },
-  "statusNoTabs": {
-    "message": "No Spotify tabs open",
-    "description": "Status message when no Spotify tabs are found"
-  },
-  "statusLoading": {
-    "message": "Loading...",
-    "description": "Status message while loading"
-  },
-  "useSystemThemeLabel": {
-    "message": "Follow system theme",
-    "description": "Label for the system theme toggle"
-  }
+	"extensionName": {
+		"message": "Spotify Light Mode",
+		"description": "Name of the extension"
+	},
+	"extensionDescription": {
+		"message": "Transform Spotify Web interface to light mode with a toggle switch.",
+		"description": "Description of the extension"
+	},
+	"popupTitle": {
+		"message": "Spotify Light Mode",
+		"description": "Title shown in the popup"
+	},
+	"themeLightLabel": {
+		"message": "Light",
+		"description": "Label for light theme option"
+	},
+	"themeDarkLabel": {
+		"message": "Dark",
+		"description": "Label for dark theme option"
+	},
+	"themeSepiaLabel": {
+		"message": "Sepia",
+		"description": "Label for sepia theme option"
+	},
+	"themeHighContrastLabel": {
+		"message": "High Contrast",
+		"description": "Label for high contrast theme option"
+	},
+	"themeVintageLabel": {
+		"message": "Vintage",
+		"description": "Label for vintage theme option"
+	},
+	"statusThemeLight": {
+		"message": "Light theme active ✓",
+		"description": "Status message when light theme is active"
+	},
+	"statusThemeDark": {
+		"message": "Dark theme active ✓",
+		"description": "Status message when dark theme is active"
+	},
+	"statusThemeSepia": {
+		"message": "Sepia theme active ✓",
+		"description": "Status message when sepia theme is active"
+	},
+	"statusThemeHighContrast": {
+		"message": "High contrast theme active ✓",
+		"description": "Status message when high contrast theme is active"
+	},
+	"statusThemeVintage": {
+		"message": "Vintage theme active ✓",
+		"description": "Status message when vintage theme is active"
+	},
+	"statusSystemTheme": {
+		"message": "Following system theme ✓",
+		"description": "Status message when following system theme"
+	},
+	"statusError": {
+		"message": "Error",
+		"description": "Status message when there's an error"
+	},
+	"statusNoTabs": {
+		"message": "No Spotify tabs open",
+		"description": "Status message when no Spotify tabs are found"
+	},
+	"statusLoading": {
+		"message": "Loading...",
+		"description": "Status message while loading"
+	},
+	"useSystemThemeLabel": {
+		"message": "Follow system theme",
+		"description": "Label for the system theme toggle"
+	},
+	"statusSystemThemeActive": {
+		"message": "Using",
+		"description": "Prefix for system theme indicator showing current system theme"
+	}
 }

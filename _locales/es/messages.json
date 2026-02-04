@@ -1,74 +1,78 @@
 {
-  "extensionName": {
-    "message": "Spotify Light Mode",
-    "description": "Nombre de la extensión"
-  },
-  "extensionDescription": {
-    "message": "Transforma la interfaz de Spotify Web a modo claro con toggle activable.",
-    "description": "Descripción de la extensión"
-  },
-  "popupTitle": {
-    "message": "Spotify Light Mode",
-    "description": "Título mostrado en el popup"
-  },
-  "themeLightLabel": {
-    "message": "Claro",
-    "description": "Etiqueta para opción de tema claro"
-  },
-  "themeDarkLabel": {
-    "message": "Oscuro",
-    "description": "Etiqueta para opción de tema oscuro"
-  },
-  "themeSepiaLabel": {
-    "message": "Sepia",
-    "description": "Etiqueta para opción de tema sepia"
-  },
-  "themeHighContrastLabel": {
-    "message": "Alto Contraste",
-    "description": "Etiqueta para opción de tema alto contraste"
-  },
-  "themeVintageLabel": {
-    "message": "Vintage",
-    "description": "Etiqueta para opción de tema vintage"
-  },
-  "statusThemeLight": {
-    "message": "Tema claro activo ✓",
-    "description": "Mensaje de estado cuando el tema claro está activo"
-  },
-  "statusThemeDark": {
-    "message": "Tema oscuro activo ✓",
-    "description": "Mensaje de estado cuando el tema oscuro está activo"
-  },
-  "statusThemeSepia": {
-    "message": "Tema sepia activo ✓",
-    "description": "Mensaje de estado cuando el tema sepia está activo"
-  },
-  "statusThemeHighContrast": {
-    "message": "Tema alto contraste activo ✓",
-    "description": "Mensaje de estado cuando el tema alto contraste está activo"
-  },
-  "statusThemeVintage": {
-    "message": "Tema vintage activo ✓",
-    "description": "Mensaje de estado cuando el tema vintage está activo"
-  },
-  "statusSystemTheme": {
-    "message": "Siguiendo tema del sistema ✓",
-    "description": "Mensaje de estado cuando se sigue el tema del sistema"
-  },
-  "statusError": {
-    "message": "Error",
-    "description": "Mensaje de estado cuando hay un error"
-  },
-  "statusNoTabs": {
-    "message": "No hay pestañas de Spotify abiertas",
-    "description": "Mensaje de estado cuando no hay pestañas de Spotify"
-  },
-  "statusLoading": {
-    "message": "Cargando...",
-    "description": "Mensaje de estado mientras carga"
-  },
-  "useSystemThemeLabel": {
-    "message": "Seguir tema del sistema",
-    "description": "Etiqueta para el toggle del tema del sistema"
-  }
+	"extensionName": {
+		"message": "Spotify Light Mode",
+		"description": "Nombre de la extensión"
+	},
+	"extensionDescription": {
+		"message": "Transforma la interfaz de Spotify Web a modo claro con toggle activable.",
+		"description": "Descripción de la extensión"
+	},
+	"popupTitle": {
+		"message": "Spotify Light Mode",
+		"description": "Título mostrado en el popup"
+	},
+	"themeLightLabel": {
+		"message": "Claro",
+		"description": "Etiqueta para opción de tema claro"
+	},
+	"themeDarkLabel": {
+		"message": "Oscuro",
+		"description": "Etiqueta para opción de tema oscuro"
+	},
+	"themeSepiaLabel": {
+		"message": "Sepia",
+		"description": "Etiqueta para opción de tema sepia"
+	},
+	"themeHighContrastLabel": {
+		"message": "Alto Contraste",
+		"description": "Etiqueta para opción de tema alto contraste"
+	},
+	"themeVintageLabel": {
+		"message": "Vintage",
+		"description": "Etiqueta para opción de tema vintage"
+	},
+	"statusThemeLight": {
+		"message": "Tema claro activo ✓",
+		"description": "Mensaje de estado cuando el tema claro está activo"
+	},
+	"statusThemeDark": {
+		"message": "Tema oscuro activo ✓",
+		"description": "Mensaje de estado cuando el tema oscuro está activo"
+	},
+	"statusThemeSepia": {
+		"message": "Tema sepia activo ✓",
+		"description": "Mensaje de estado cuando el tema sepia está activo"
+	},
+	"statusThemeHighContrast": {
+		"message": "Tema alto contraste activo ✓",
+		"description": "Mensaje de estado cuando el tema alto contraste está activo"
+	},
+	"statusThemeVintage": {
+		"message": "Tema vintage activo ✓",
+		"description": "Mensaje de estado cuando el tema vintage está activo"
+	},
+	"statusSystemTheme": {
+		"message": "Siguiendo tema del sistema ✓",
+		"description": "Mensaje de estado cuando se sigue el tema del sistema"
+	},
+	"statusError": {
+		"message": "Error",
+		"description": "Mensaje de estado cuando hay un error"
+	},
+	"statusNoTabs": {
+		"message": "No hay pestañas de Spotify abiertas",
+		"description": "Mensaje de estado cuando no hay pestañas de Spotify"
+	},
+	"statusLoading": {
+		"message": "Cargando...",
+		"description": "Mensaje de estado mientras carga"
+	},
+	"useSystemThemeLabel": {
+		"message": "Seguir tema del sistema",
+		"description": "Etiqueta para el toggle del tema del sistema"
+	},
+	"statusSystemThemeActive": {
+		"message": "Usando",
+		"description": "Prefijo para indicador de tema del sistema mostrando el tema actual"
+	}
 }
