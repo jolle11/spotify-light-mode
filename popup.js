@@ -1,267 +1,206 @@
-// Popup script para controlar la selección de temas de Spotify
+// Popup: lee/escribe la configuración en chrome.storage.sync.
+// Las pestañas de Spotify reaccionan solas vía storage.onChanged.
 
-// Función para aplicar tema del sistema al popup
-function applySystemThemeToPopup() {
-	const isDarkMode =
-		window.matchMedia &&
-		window.matchMedia("(prefers-color-scheme: dark)").matches;
-	if (isDarkMode) {
-		document.body.classList.add("dark-mode");
+const { SETTINGS_KEYS, withDefaults, resolveTheme, manualThemeChange } = ThemeCore;
+const t = (key) => chrome.i18n.getMessage(key) || key;
+const $ = (id) => document.getElementById(id);
+
+const darkQuery = window.matchMedia("(prefers-color-scheme: dark)");
+const themeOptions = document.querySelectorAll(".theme-option");
+const statusDiv = $("status");
+let settings = withDefaults({});
+
+// --- Textos traducidos ---
+for (const id of [
+	"popupTitle",
+	"useSystemThemeLabel",
+	"themeLightLabel",
+	"themeDarkLabel",
+	"themeSepiaLabel",
+	"themeHighContrastLabel",
+	"themeVintageLabel",
+	"scheduleLabel",
+	"scheduleLightStartLabel",
+	"scheduleDarkStartLabel",
+	"brightnessLabel",
+	"keepPlayerDarkLabel",
+]) {
+	$(id).textContent = t(id);
+}
+$("keepPlayerDarkSwitch").closest(".toggle-container").title = t("keepPlayerDarkHint");
+statusDiv.textContent = t("statusLoading");
+
+// --- Render ---
+function render() {
+	document.body.classList.toggle("dark-mode", darkQuery.matches);
+
+	const auto = settings.useSystemTheme || settings.scheduleEnabled;
+	$("useSystemThemeSwitch").checked = settings.useSystemTheme;
+	$("scheduleSwitch").checked = settings.scheduleEnabled;
+	$("scheduleTimes").classList.toggle("visible", settings.scheduleEnabled);
+	$("scheduleLightStart").value = settings.scheduleLightStart;
+	$("scheduleDarkStart").value = settings.scheduleDarkStart;
+	$("brightness").value = settings.brightness;
+	$("brightnessValue").textContent = `${settings.brightness}%`;
+	$("keepPlayerDarkSwitch").checked = settings.keepPlayerDark;
+
+	themeOptions.forEach((option) => {
+		const theme = option.dataset.theme;
+		option.classList.toggle("active", !auto && theme === settings.selectedTheme);
+		option.classList.toggle("disabled", auto);
+	});
+
+	const effective = resolveTheme(settings, darkQuery.matches);
+	const indicator = $("systemThemeIndicator");
+	if (auto) {
+		const icon = effective === "dark" ? "🌙" : "☀️";
+		const prefix = settings.useSystemTheme ? t("statusSystemThemeActive") : t("statusScheduleActive");
+		$("systemThemeText").textContent = `${icon} ${prefix}: ${themeName(effective)}`;
+		indicator.classList.add("visible");
 	} else {
-		document.body.classList.remove("dark-mode");
+		indicator.classList.remove("visible");
+	}
+
+	setStatus(auto ? t(settings.useSystemTheme ? "statusSystemTheme" : "statusSchedule") : statusFor(effective));
+}
+
+function themeName(theme) {
+	return t(`theme${theme[0].toUpperCase()}${theme.slice(1)}Label`);
+}
+
+function statusFor(theme) {
+	return t(`statusTheme${theme[0].toUpperCase()}${theme.slice(1)}`);
+}
+
+function setStatus(text, isError = false) {
+	statusDiv.textContent = text;
+	statusDiv.style.color = isError ? "#e22134" : "#1db954";
+}
+
+// Guarda cambios; el render llega por storage.onChanged
+async function save(changes) {
+	try {
+		await chrome.storage.sync.set(changes);
+	} catch (error) {
+		console.error("Error saving settings:", error);
+		setStatus(t("statusError"), true);
+		render(); // revertir la UI al estado guardado
 	}
 }
 
-// Aplicar tema del sistema al cargar
-applySystemThemeToPopup();
+// --- Eventos ---
+$("useSystemThemeSwitch").addEventListener("change", (e) => {
+	save({ useSystemTheme: e.target.checked, ...(e.target.checked && { scheduleEnabled: false }) });
+});
 
-// Escuchar cambios en el tema del sistema
-if (window.matchMedia) {
-	const darkModeQuery = window.matchMedia("(prefers-color-scheme: dark)");
-	darkModeQuery.addEventListener("change", (e) => {
-		applySystemThemeToPopup();
+$("scheduleSwitch").addEventListener("change", (e) => {
+	save({ scheduleEnabled: e.target.checked, ...(e.target.checked && { useSystemTheme: false }) });
+});
+
+for (const id of ["scheduleLightStart", "scheduleDarkStart"]) {
+	$(id).addEventListener("change", (e) => {
+		if (e.target.value) save({ [id]: e.target.value });
 	});
 }
 
-const useSystemThemeSwitch = document.getElementById("useSystemThemeSwitch");
-const themeSelector = document.getElementById("themeSelector");
-const themeOptions = document.querySelectorAll(".theme-option");
-const statusDiv = document.getElementById("status");
-const systemThemeIndicator = document.getElementById("systemThemeIndicator");
-const systemThemeText = document.getElementById("systemThemeText");
+$("brightness").addEventListener("input", (e) => {
+	$("brightnessValue").textContent = `${e.target.value}%`;
+});
+$("brightness").addEventListener("change", (e) => {
+	save({ brightness: Number(e.target.value) });
+});
 
-// Función para obtener el tema actual del sistema
-function getSystemTheme() {
-	return window.matchMedia &&
-		window.matchMedia("(prefers-color-scheme: dark)").matches
-		? "dark"
-		: "light";
-}
+$("keepPlayerDarkSwitch").addEventListener("change", (e) => {
+	save({ keepPlayerDark: e.target.checked });
+});
 
-// Función para actualizar el indicador del tema del sistema
-function updateSystemThemeIndicator(show) {
-	if (show) {
-		const currentSystemTheme = getSystemTheme();
-		const themeIcon = currentSystemTheme === "dark" ? "🌙" : "☀️";
-		const themeName =
-			currentSystemTheme === "dark"
-				? chrome.i18n.getMessage("themeDarkLabel")
-				: chrome.i18n.getMessage("themeLightLabel");
-		systemThemeText.textContent = `${themeIcon} ${chrome.i18n.getMessage("statusSystemThemeActive") || "Using"}: ${themeName}`;
-		systemThemeIndicator.classList.add("visible");
-	} else {
-		systemThemeIndicator.classList.remove("visible");
+themeOptions.forEach((option) => {
+	option.addEventListener("click", () => {
+		if (option.classList.contains("disabled")) return;
+		endPreview();
+		save(manualThemeChange(option.dataset.theme));
+	});
+	option.addEventListener("mouseenter", () => {
+		if (!option.classList.contains("disabled")) startPreview(option.dataset.theme);
+	});
+	option.addEventListener("mouseleave", endPreview);
+});
+
+// --- Vista previa al pasar el ratón ---
+// Un puerto por pestaña activa de Spotify; al cerrarse el popup se desconecta
+// y el content script restaura el tema guardado automáticamente.
+let previewPorts = null;
+
+async function getPreviewPorts() {
+	if (!previewPorts) {
+		previewPorts = chrome.tabs
+			.query({ url: "https://open.spotify.com/*", active: true })
+			.then((tabs) =>
+				tabs.map((tab) => {
+					const port = chrome.tabs.connect(tab.id, { name: "theme-preview" });
+					port.onDisconnect.addListener(() => void chrome.runtime.lastError);
+					return port;
+				}),
+			)
+			.catch(() => []);
 	}
+	return previewPorts;
 }
 
-// Función para enviar mensaje a una pestaña con reintentos
-async function sendMessageWithRetry(tabId, message, maxRetries = 3) {
-	for (let attempt = 1; attempt <= maxRetries; attempt++) {
+async function startPreview(theme) {
+	for (const port of await getPreviewPorts()) {
 		try {
-			const response = await chrome.tabs.sendMessage(tabId, message);
-			return response;
-		} catch (error) {
-			if (attempt === maxRetries) {
-				console.warn(
-					`Failed to send message to tab ${tabId} after ${maxRetries} attempts:`,
-					error,
-				);
-				return null;
-			}
-			// Esperar antes de reintentar (100ms, 200ms, 400ms...)
-			await new Promise((resolve) => setTimeout(resolve, 100 * attempt));
+			port.postMessage({ theme });
+		} catch (_) {
+			/* pestaña sin content script */
 		}
 	}
-	return null;
 }
 
-// Cargar textos traducidos
-document.getElementById("popupTitle").textContent =
-	chrome.i18n.getMessage("popupTitle");
-document.getElementById("useSystemThemeLabel").textContent =
-	chrome.i18n.getMessage("useSystemThemeLabel");
-document.getElementById("themeLightLabel").textContent =
-	chrome.i18n.getMessage("themeLightLabel");
-document.getElementById("themeDarkLabel").textContent =
-	chrome.i18n.getMessage("themeDarkLabel");
-document.getElementById("themeSepiaLabel").textContent =
-	chrome.i18n.getMessage("themeSepiaLabel");
-document.getElementById("themeHighContrastLabel").textContent =
-	chrome.i18n.getMessage("themeHighContrastLabel");
-document.getElementById("themeVintageLabel").textContent =
-	chrome.i18n.getMessage("themeVintageLabel");
-statusDiv.textContent = chrome.i18n.getMessage("statusLoading");
+async function endPreview() {
+	if (!previewPorts) return;
+	for (const port of await previewPorts) {
+		try {
+			port.postMessage({ theme: null });
+		} catch (_) {
+			/* ignorar */
+		}
+	}
+}
 
-// Cargar el estado actual al abrir el popup
-chrome.storage.sync.get(["selectedTheme", "useSystemTheme"], (result) => {
+// --- Indicación de atajos ---
+chrome.commands.getAll((commands) => {
+	const keys = commands
+		.filter((c) => c.shortcut && (c.name === "toggle-theme" || c.name === "cycle-theme"))
+		.map((c) => `${c.shortcut} ${c.name === "toggle-theme" ? t("shortcutToggle") : t("shortcutCycle")}`);
+	const hint = $("shortcutHint");
+	if (keys.length) hint.textContent = keys.join(" · ");
+	if (!navigator.userAgent.includes("Firefox")) {
+		const link = document.createElement("a");
+		link.textContent = t("shortcutConfigure");
+		link.addEventListener("click", () => chrome.tabs.create({ url: "chrome://extensions/shortcuts" }));
+		if (keys.length) hint.append(" · ");
+		hint.append(link);
+	}
+});
+
+// --- Carga inicial y sincronización ---
+darkQuery.addEventListener("change", render);
+
+chrome.storage.onChanged.addListener((changes, area) => {
+	if (area !== "sync" || !SETTINGS_KEYS.some((k) => k in changes)) return;
+	const next = { ...settings };
+	for (const k of SETTINGS_KEYS) if (k in changes) next[k] = changes[k].newValue;
+	settings = withDefaults(next);
+	render();
+});
+
+chrome.storage.sync.get(SETTINGS_KEYS, (result) => {
 	if (chrome.runtime.lastError) {
 		console.error("Error loading state:", chrome.runtime.lastError);
-		updateStatus("light", true);
+		setStatus(t("statusError"), true);
 		return;
 	}
-
-	const useSystemTheme = result.useSystemTheme === true; // Por defecto desactivado
-	const theme = result.selectedTheme || "light"; // Por defecto light
-
-	useSystemThemeSwitch.checked = useSystemTheme;
-
-	// Marcar el tema activo
-	themeOptions.forEach((option) => {
-		const optionTheme = option.getAttribute("data-theme");
-		if (optionTheme === theme && !useSystemTheme) {
-			option.classList.add("active");
-		}
-		// Deshabilitar selector si usamos tema del sistema
-		if (useSystemTheme) {
-			option.classList.add("disabled");
-		}
-	});
-
-	// Actualizar indicador y status según si usamos tema del sistema o no
-	updateSystemThemeIndicator(useSystemTheme);
-	if (useSystemTheme) {
-		updateStatus(null, false, chrome.i18n.getMessage("statusSystemTheme"));
-	} else {
-		updateStatus(theme);
-	}
+	settings = withDefaults(result);
+	render();
 });
-
-// Escuchar cambios en el toggle de sistema
-useSystemThemeSwitch.addEventListener("change", async () => {
-	const useSystemTheme = useSystemThemeSwitch.checked;
-
-	try {
-		// Guardar el estado
-		await chrome.storage.sync.set({ useSystemTheme });
-
-		// Si activamos tema del sistema, obtener tema actual para actualizar UI
-		let selectedTheme = "light";
-		if (!useSystemTheme) {
-			const result = await chrome.storage.sync.get(["selectedTheme"]);
-			selectedTheme = result.selectedTheme || "light";
-		}
-
-		// Habilitar/deshabilitar selector de temas y quitar active
-		themeOptions.forEach((option) => {
-			if (useSystemTheme) {
-				option.classList.add("disabled");
-				option.classList.remove("active");
-			} else {
-				option.classList.remove("disabled");
-				// Volver a marcar el tema seleccionado como activo
-				if (option.getAttribute("data-theme") === selectedTheme) {
-					option.classList.add("active");
-				}
-			}
-		});
-
-		// Actualizar indicador y status
-		updateSystemThemeIndicator(useSystemTheme);
-		if (useSystemTheme) {
-			updateStatus(
-				null,
-				false,
-				chrome.i18n.getMessage("statusSystemTheme"),
-			);
-		} else {
-			updateStatus(selectedTheme);
-		}
-
-		// Enviar mensaje a todas las pestañas de Spotify
-		const tabs = await chrome.tabs.query({
-			url: "https://open.spotify.com/*",
-		});
-
-		if (tabs.length === 0) {
-			return;
-		}
-
-		// Enviar mensajes con reintentos automáticos
-		const messagePromises = tabs.map((tab) =>
-			sendMessageWithRetry(tab.id, {
-				action: "updateSystemThemePreference",
-				useSystemTheme,
-			}),
-		);
-
-		await Promise.all(messagePromises);
-	} catch (error) {
-		console.error("Error updating system theme preference:", error);
-		// Revertir el toggle si hay error
-		useSystemThemeSwitch.checked = !useSystemTheme;
-		themeOptions.forEach((option) => {
-			if (!useSystemTheme) {
-				option.classList.add("disabled");
-			} else {
-				option.classList.remove("disabled");
-			}
-		});
-	}
-});
-
-// Escuchar clicks en las opciones de tema
-themeOptions.forEach((option) => {
-	option.addEventListener("click", async () => {
-		// Ignorar si está deshabilitado (usando tema del sistema)
-		if (option.classList.contains("disabled")) return;
-
-		const selectedTheme = option.getAttribute("data-theme");
-
-		try {
-			// Guardar el tema seleccionado
-			await chrome.storage.sync.set({ selectedTheme });
-
-			// Actualizar UI
-			themeOptions.forEach((opt) => opt.classList.remove("active"));
-			option.classList.add("active");
-
-			// Enviar mensaje a todas las pestañas de Spotify
-			const tabs = await chrome.tabs.query({
-				url: "https://open.spotify.com/*",
-			});
-
-			if (tabs.length === 0) {
-				updateStatus(
-					selectedTheme,
-					false,
-					chrome.i18n.getMessage("statusNoTabs"),
-				);
-				return;
-			}
-
-			// Enviar mensajes con reintentos automáticos
-			const messagePromises = tabs.map((tab) =>
-				sendMessageWithRetry(tab.id, {
-					action: "changeTheme",
-					theme: selectedTheme,
-				}),
-			);
-
-			await Promise.all(messagePromises);
-			updateStatus(selectedTheme);
-		} catch (error) {
-			console.error("Error changing theme:", error);
-			updateStatus(selectedTheme, true);
-		}
-	});
-});
-
-function updateStatus(theme, hasError = false, customMessage = null) {
-	if (hasError) {
-		statusDiv.textContent = chrome.i18n.getMessage("statusError");
-		statusDiv.style.color = "#e22134";
-	} else if (customMessage) {
-		statusDiv.textContent = customMessage;
-		statusDiv.style.color = "#888";
-	} else {
-		const themeMessages = {
-			light: chrome.i18n.getMessage("statusThemeLight"),
-			dark: chrome.i18n.getMessage("statusThemeDark"),
-			sepia: chrome.i18n.getMessage("statusThemeSepia"),
-			highContrast: chrome.i18n.getMessage("statusThemeHighContrast"),
-			vintage: chrome.i18n.getMessage("statusThemeVintage"),
-		};
-		statusDiv.textContent = themeMessages[theme] || theme;
-		statusDiv.style.color = "#1db954";
-	}
-}

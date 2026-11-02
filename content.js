@@ -1,401 +1,242 @@
-// Content script para aplicar/remover dinámicamente temas en Spotify
+// Content script: aplica temas en open.spotify.com.
+// Envuelto en una IIFE para poder reinyectarse (instalación/actualización) sin
+// errores de "Identifier has already been declared".
 
-// Verificar que estamos en Spotify
-if (!window.location.hostname.includes("spotify.com")) {
-	throw new Error("Spotify Theme: Not on Spotify, exiting");
-}
+(() => {
+	// Si hay una instancia anterior (p. ej. huérfana tras actualizar), la desmontamos.
+	if (window.__spotifyThemeInstance) {
+		try {
+			window.__spotifyThemeInstance.destroy();
+		} catch (_) {
+			/* contexto anterior invalidado: ignorar */
+		}
+	}
 
-// Crear un elemento style para inyectar/remover el CSS dinámicamente
-const styleId = "spotify-theme-styles";
-const transitionStyleId = "spotify-theme-transitions";
-const correctionClass = "spotify-theme-corrected";
-let observer = null;
-let debounceTimer = null;
-let systemThemeListener = null;
-let systemThemeMediaQuery = null;
-let useSystemTheme = false;
-let currentTheme = "light"; // 'light', 'dark', 'sepia', 'highContrast', 'vintage'
+	const { SETTINGS_KEYS, withDefaults, resolveTheme } = globalThis.ThemeCore;
 
-// WeakSet para cachear elementos ya corregidos (mejor rendimiento y sin memory leaks)
-const correctedElementsCache = new WeakSet();
+	const STYLE_ID = "spotify-theme-styles";
+	const TRANSITION_STYLE_ID = "spotify-theme-transitions";
+	const BG_ATTR = "data-spotify-theme-bg";
+	const PLAYER_SELECTOR = '[data-testid="now-playing-bar"], footer';
+	const INVERT = "invert(1) hue-rotate(180deg)";
+	// Inverso de INVERT (los filtros se aplican en orden, hay que deshacerlos al revés)
+	const UNINVERT = "hue-rotate(180deg) invert(1)";
 
-// Definición de temas
-const themes = {
-	light: {
-		bodyFilter: "invert(1) hue-rotate(180deg)",
-		mediaFilter: "invert(1) hue-rotate(180deg)",
-		backgroundColor: "#fff",
-	},
-	dark: {
-		bodyFilter: "none",
-		mediaFilter: "none",
-		backgroundColor: "transparent",
-	},
-	sepia: {
-		bodyFilter: "sepia(0.9) hue-rotate(15deg) saturate(0.8)",
-		mediaFilter: "sepia(0) hue-rotate(0deg) saturate(1)",
-		backgroundColor: "#f4ecd8",
-	},
-	highContrast: {
-		bodyFilter: "invert(1) hue-rotate(180deg) contrast(1.5) saturate(1.3)",
-		mediaFilter: "invert(1) hue-rotate(180deg)",
-		backgroundColor: "#fff",
-	},
-	vintage: {
-		bodyFilter:
-			"sepia(0.7) hue-rotate(-10deg) saturate(0.9) contrast(0.95) brightness(1.05)",
-		mediaFilter: "sepia(0) hue-rotate(0deg) saturate(1)",
-		backgroundColor: "#f5f0e8",
-	},
-};
-
-// Función de debounce para limitar la frecuencia de ejecución
-function debounce(func, delay) {
-	return function (...args) {
-		clearTimeout(debounceTimer);
-		debounceTimer = setTimeout(() => func.apply(this, args), delay);
+	const THEME_FILTERS = {
+		light: { page: INVERT, media: UNINVERT, bg: "#fff", inverted: true },
+		highContrast: {
+			page: `${INVERT} contrast(1.5) saturate(1.3)`,
+			media: `saturate(0.77) contrast(0.67) ${UNINVERT}`,
+			bg: "#fff",
+			inverted: true,
+		},
+		sepia: {
+			page: "sepia(0.9) hue-rotate(15deg) saturate(0.8)",
+			media: "",
+			bg: "#f4ecd8",
+			inverted: false,
+		},
+		vintage: {
+			page: "sepia(0.7) hue-rotate(-10deg) saturate(0.9) contrast(0.95) brightness(1.05)",
+			media: "",
+			bg: "#f5f0e8",
+			inverted: false,
+		},
+		dark: { page: "", media: "", bg: "", inverted: false },
 	};
-}
 
-// Función para detectar si el sistema está en modo oscuro
-function isSystemDarkMode() {
-	return (
-		window.matchMedia &&
-		window.matchMedia("(prefers-color-scheme: dark)").matches
-	);
-}
+	let settings = withDefaults({});
+	let previewTheme = null;
+	let appliedTheme = null;
+	let observer = null;
+	let scanTimer = null;
+	let removeStyleTimer = null;
+	let scheduleTimer = null;
+	const systemQuery = window.matchMedia("(prefers-color-scheme: dark)");
 
-// Función para aplicar tema según preferencia del sistema
-function applyThemeBasedOnSystem() {
-	if (!useSystemTheme) return;
+	const effectiveTheme = () =>
+		previewTheme || resolveTheme(settings, systemQuery.matches) || "light";
 
-	const isDarkMode = isSystemDarkMode();
-	// Si el sistema está en modo claro, aplicamos light mode a Spotify
-	// Si el sistema está en modo oscuro, mantenemos Spotify oscuro
-	if (isDarkMode) {
-		applyTheme("dark");
-	} else {
-		applyTheme("light");
-	}
-}
+	function buildCss(theme) {
+		const t = THEME_FILTERS[theme];
+		const b = settings.brightness / 100;
+		const brightness = b !== 1 ? ` brightness(${b})` : "";
+		const unBrightness = b !== 1 ? `brightness(${(1 / b).toFixed(4)}) ` : "";
+		const page = `${t.page}${brightness}`.trim();
+		if (!page) return "";
+		const media = `${unBrightness}${t.media}`.trim() || "none";
 
-// Función para limpiar el listener del tema del sistema (evita memory leaks)
-function cleanupSystemThemeListener() {
-	if (systemThemeListener && systemThemeMediaQuery) {
-		systemThemeMediaQuery.removeEventListener(
-			"change",
-			systemThemeListener,
-		);
-		systemThemeListener = null;
-	}
-}
-
-// Función para iniciar/detener listener del tema del sistema
-function setupSystemThemeListener() {
-	// Siempre limpiar listener anterior primero
-	cleanupSystemThemeListener();
-
-	// Si usamos tema del sistema, añadir listener
-	if (useSystemTheme && window.matchMedia) {
-		systemThemeMediaQuery = window.matchMedia(
-			"(prefers-color-scheme: dark)",
-		);
-		systemThemeListener = (e) => {
-			// Si el sistema está en modo oscuro, mantener Spotify oscuro
-			// Si el sistema está en modo claro, aplicar light mode a Spotify
-			if (e.matches) {
-				applyTheme("dark");
-			} else {
-				applyTheme("light");
-			}
-		};
-		systemThemeMediaQuery.addEventListener("change", systemThemeListener);
-	}
-}
-
-// Inyectar estilos de transición permanentes
-function injectTransitionStyles() {
-	if (document.getElementById(transitionStyleId)) return;
-
-	if (!document.head) return;
-
-	const transitionStyle = document.createElement("style");
-	transitionStyle.id = transitionStyleId;
-	transitionStyle.textContent = `
-    body {
-      transition: filter 0.2s ease-in-out, background-color 0.2s ease-in-out !important;
-    }
-    img, video {
-      transition: filter 0.2s ease-in-out !important;
-    }
-    .${correctionClass} {
-      transition: filter 0.2s ease-in-out !important;
-    }
-  `;
-	document.head.appendChild(transitionStyle);
-}
-
-// Función para corregir elementos con background-image según el tema
-function correctBackgroundImages(theme) {
-	const elements = document.querySelectorAll(
-		'[style*="background-image"]:not(.' + correctionClass + ")",
-	);
-
-	// Optimización: usar requestAnimationFrame para evitar bloquear el renderizado
-	if (elements.length === 0) return;
-
-	const themeConfig = themes[theme];
-	if (!themeConfig) return;
-
-	requestAnimationFrame(() => {
-		elements.forEach((el) => {
-			el.classList.add(correctionClass);
-			const currentFilter = el.style.filter || "";
-
-			// Aplicar el filtro correspondiente al tema
-			if (theme === "light" && !currentFilter.includes("invert")) {
-				el.style.filter = (
-					currentFilter + " invert(1) hue-rotate(180deg)"
-				).trim();
-			} else if (
-				theme === "highContrast" &&
-				!currentFilter.includes("invert")
-			) {
-				el.style.filter = (
-					currentFilter + " invert(1) hue-rotate(180deg)"
-				).trim();
-			} else if (theme === "sepia" && !currentFilter.includes("sepia")) {
-				el.style.filter = (
-					currentFilter +
-					" " +
-					themeConfig.mediaFilter
-				).trim();
-			} else if (
-				theme === "vintage" &&
-				!currentFilter.includes("sepia")
-			) {
-				el.style.filter = (
-					currentFilter +
-					" " +
-					themeConfig.mediaFilter
-				).trim();
-			}
-			// Para dark theme no aplicamos filtro adicional
-		});
-	});
-}
-
-// Función para remover correcciones de background-image
-function removeBackgroundCorrections() {
-	const elements = document.querySelectorAll("." + correctionClass);
-	elements.forEach((el) => {
-		el.classList.remove(correctionClass);
-		// Remover todos los filtros que hayamos aplicado
-		el.style.filter = el.style.filter
-			.replace(/invert\(1\)\s*hue-rotate\(180deg\)/g, "")
-			.replace(
-				/sepia\([^)]*\)\s*hue-rotate\([^)]*\)\s*saturate\([^)]*\)/g,
-				"",
-			)
-			.trim();
-		if (!el.style.filter) {
-			el.style.removeProperty("filter");
-		}
-	});
-}
-
-// Función para aplicar un tema
-function applyTheme(theme) {
-	try {
-		currentTheme = theme;
-		const themeConfig = themes[theme];
-
-		if (!themeConfig) {
-			console.warn("Spotify Theme: Unknown theme:", theme);
-			return;
-		}
-
-		// Verificar que document.head existe, reintentar si no
-		if (!document.head) {
-			console.warn(
-				"Spotify Theme: document.head not available yet, retrying...",
-			);
-			setTimeout(() => applyTheme(theme), 50);
-			return;
-		}
-
-		// Inyectar estilos de transición permanentes primero
-		injectTransitionStyles();
-
-		// Obtener o crear el elemento de estilo
-		let style = document.getElementById(styleId);
-		const isNewStyle = !style;
-
-		if (isNewStyle) {
-			style = document.createElement("style");
-			style.id = styleId;
-		}
-
-		// Aplicar los estilos del tema
-		if (theme === "dark") {
-			// Para tema oscuro, remover filtros
-			style.textContent = `
-        body {
-          filter: none !important;
-          background-color: transparent !important;
-        }
-        img, video {
-          filter: none !important;
-        }
-      `;
-
-			// Si es tema oscuro, desconectar observer y limpiar correcciones
-			if (observer) {
-				observer.disconnect();
-				observer = null;
-			}
-			removeBackgroundCorrections();
-
-			// Eliminar el estilo después de la transición
-			if (!isNewStyle) {
-				setTimeout(() => {
-					const styleToRemove = document.getElementById(styleId);
-					if (styleToRemove) {
-						styleToRemove.remove();
-					}
-				}, 250);
-			}
-
-			return;
-		}
-
-		// Para temas que requieren filtros (light, sepia)
-		style.textContent = `
-      body {
-        filter: ${themeConfig.bodyFilter} !important;
-        background-color: ${themeConfig.backgroundColor} !important;
+		let css = `
+      html {
+        filter: ${page} !important;
+        ${t.bg ? `background-color: ${t.bg} !important;` : ""}
       }
-      img, video {
-        filter: ${themeConfig.mediaFilter} !important;
+      img, video, [${BG_ATTR}] {
+        filter: ${media} !important;
       }
     `;
-
-		if (isNewStyle) {
-			document.head.appendChild(style);
+		// Mantener la barra del reproductor oscura (solo posible en temas invertidos)
+		if (settings.keepPlayerDark && t.inverted) {
+			css += `
+      :is(${PLAYER_SELECTOR}) {
+        filter: ${unBrightness}${t.media} !important;
+      }
+      :is(${PLAYER_SELECTOR}) :is(img, video, [${BG_ATTR}]) {
+        filter: none !important;
+      }
+    `;
 		}
+		return css;
+	}
 
-		// Corregir elementos existentes con background-image
-		correctBackgroundImages(theme);
+	function injectTransitionStyles() {
+		if (document.getElementById(TRANSITION_STYLE_ID)) return;
+		const style = document.createElement("style");
+		style.id = TRANSITION_STYLE_ID;
+		style.textContent = `
+      html, img, video, [${BG_ATTR}] {
+        transition: filter 0.2s ease-in-out, background-color 0.2s ease-in-out !important;
+      }
+    `;
+		document.head.appendChild(style);
+	}
 
-		// Configurar observer si no existe
-		if (!observer) {
-			// Crear versión debounced de la función de corrección (250ms para mejor rendimiento)
-			const debouncedCorrection = debounce(
-				() => correctBackgroundImages(currentTheme),
-				250,
-			);
+	// Marca/desmarca elementos con background-image inline; el filtro lo pone el CSS.
+	function scanBackgroundImages() {
+		document.querySelectorAll(`[style*="background-image"]:not([${BG_ATTR}])`).forEach((el) => {
+			if (el.style.backgroundImage && el.style.backgroundImage !== "none") {
+				el.setAttribute(BG_ATTR, "");
+			}
+		});
+		document.querySelectorAll(`[${BG_ATTR}]`).forEach((el) => {
+			if (!el.style.backgroundImage || el.style.backgroundImage === "none") {
+				el.removeAttribute(BG_ATTR);
+			}
+		});
+	}
 
-			observer = new MutationObserver((mutations) => {
-				const hasRelevantChanges = mutations.some((mutation) => {
-					if (
-						mutation.type === "childList" &&
-						mutation.addedNodes.length > 0
-					) {
-						return true;
-					}
-					if (
-						mutation.type === "attributes" &&
-						mutation.attributeName === "style"
-					) {
-						const target = mutation.target;
-						return (
-							target.style.backgroundImage &&
-							!target.classList.contains(correctionClass)
-						);
-					}
-					return false;
-				});
+	function scheduleScan() {
+		clearTimeout(scanTimer);
+		scanTimer = setTimeout(scanBackgroundImages, 250);
+	}
 
-				if (hasRelevantChanges) {
-					debouncedCorrection();
-				}
-			});
+	function startObserver() {
+		if (observer) return;
+		if (!document.body) {
+			// En document_start aún no hay body: esperar al DOM
+			document.addEventListener("DOMContentLoaded", startObserver, { once: true });
+			return;
+		}
+		scanBackgroundImages();
+		observer = new MutationObserver(scheduleScan);
+		observer.observe(document.body, {
+			childList: true,
+			subtree: true,
+			attributes: true,
+			attributeFilter: ["style"],
+		});
+	}
 
-			if (document.body) {
-				observer.observe(document.body, {
-					childList: true,
-					subtree: true,
-					attributes: true,
-					attributeFilter: ["style"],
-				});
+	function stopObserver() {
+		observer?.disconnect();
+		observer = null;
+		clearTimeout(scanTimer);
+		document.querySelectorAll(`[${BG_ATTR}]`).forEach((el) => el.removeAttribute(BG_ATTR));
+	}
+
+	function apply() {
+		if (!document.head) {
+			setTimeout(apply, 20);
+			return;
+		}
+		const theme = effectiveTheme();
+		const css = buildCss(theme);
+		clearTimeout(removeStyleTimer);
+		injectTransitionStyles();
+
+		let style = document.getElementById(STYLE_ID);
+		if (!css) {
+			// Tema oscuro nativo: quitar filtros con transición y luego el <style>
+			stopObserver();
+			if (style) {
+				style.textContent = "html { filter: none !important; }";
+				removeStyleTimer = setTimeout(() => style.remove(), 250);
 			}
 		} else {
-			// Si ya existe, solo actualizar las correcciones de background
-			removeBackgroundCorrections();
-			correctBackgroundImages(theme);
-		}
-	} catch (error) {
-		console.error("Spotify Theme: Error applying theme:", error);
-	}
-}
-
-// Cargar el estado inicial al cargar la página
-chrome.storage.sync.get(["selectedTheme", "useSystemTheme"], (result) => {
-	if (chrome.runtime.lastError) {
-		console.error(
-			"Spotify Theme: Error loading state:",
-			chrome.runtime.lastError,
-		);
-		// En caso de error, aplicar modo claro por defecto
-		applyTheme("light");
-		return;
-	}
-
-	useSystemTheme = result.useSystemTheme === true; // Por defecto desactivado
-	const theme = result.selectedTheme || "light"; // Por defecto light
-
-	if (useSystemTheme) {
-		// Seguir el tema del sistema
-		setupSystemThemeListener();
-		applyThemeBasedOnSystem();
-	} else {
-		// Usar tema seleccionado manualmente
-		applyTheme(theme);
-	}
-});
-
-// Escuchar mensajes del popup para cambiar tema
-chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
-	try {
-		if (message && message.action === "changeTheme") {
-			applyTheme(message.theme);
-			sendResponse({ success: true });
-		} else if (
-			message &&
-			message.action === "updateSystemThemePreference"
-		) {
-			useSystemTheme = message.useSystemTheme;
-
-			if (useSystemTheme) {
-				// Activar listener del sistema y aplicar tema
-				setupSystemThemeListener();
-				applyThemeBasedOnSystem();
-			} else {
-				// Desactivar listener y mantener tema seleccionado manualmente
-				setupSystemThemeListener(); // Esto removerá el listener
-				// Leer el tema manual actual
-				chrome.storage.sync.get(["selectedTheme"], (result) => {
-					const theme = result.selectedTheme || "light";
-					applyTheme(theme);
-				});
+			if (!style) {
+				style = document.createElement("style");
+				style.id = STYLE_ID;
+				document.head.appendChild(style);
 			}
-			sendResponse({ success: true });
+			style.textContent = css;
+			startObserver();
 		}
-	} catch (error) {
-		console.error("Spotify Theme: Error processing message:", error);
-		sendResponse({ success: false, error: error.message });
-	}
-	return true; // Indica que la respuesta será enviada de forma asíncrona
-});
 
-console.log("Spotify Theme content script loaded.");
+		if (theme !== appliedTheme && !previewTheme) {
+			appliedTheme = theme;
+			// Informar al background para el icono de esta pestaña
+			chrome.runtime.sendMessage({ action: "effectiveTheme", theme }).catch(() => {});
+		}
+	}
+
+	// Reevaluar el horario al cambiar de minuto
+	function updateScheduleTimer() {
+		clearTimeout(scheduleTimer);
+		if (!settings.scheduleEnabled || settings.useSystemTheme) return;
+		const msToNextMinute = 60000 - (Date.now() % 60000) + 50;
+		scheduleTimer = setTimeout(() => {
+			apply();
+			updateScheduleTimer();
+		}, msToNextMinute);
+	}
+
+	const onSystemChange = () => {
+		if (settings.useSystemTheme) apply();
+	};
+
+	const onStorageChanged = (changes, area) => {
+		if (area !== "sync" || !SETTINGS_KEYS.some((k) => k in changes)) return;
+		const next = { ...settings };
+		for (const k of SETTINGS_KEYS) if (k in changes) next[k] = changes[k].newValue;
+		settings = withDefaults(next);
+		updateScheduleTimer();
+		apply();
+	};
+
+	// Vista previa desde el popup: dura mientras el puerto esté conectado
+	const onConnect = (port) => {
+		if (port.name !== "theme-preview") return;
+		port.onMessage.addListener((msg) => {
+			previewTheme = msg && msg.theme ? msg.theme : null;
+			apply();
+		});
+		port.onDisconnect.addListener(() => {
+			previewTheme = null;
+			apply();
+		});
+	};
+
+	function destroy() {
+		systemQuery.removeEventListener("change", onSystemChange);
+		chrome.storage.onChanged.removeListener(onStorageChanged);
+		chrome.runtime.onConnect.removeListener(onConnect);
+		clearTimeout(scheduleTimer);
+		clearTimeout(removeStyleTimer);
+		observer?.disconnect();
+		observer = null;
+	}
+
+	systemQuery.addEventListener("change", onSystemChange);
+	chrome.storage.onChanged.addListener(onStorageChanged);
+	chrome.runtime.onConnect.addListener(onConnect);
+	window.__spotifyThemeInstance = { destroy };
+
+	chrome.storage.sync.get(SETTINGS_KEYS, (result) => {
+		if (chrome.runtime.lastError) {
+			console.error("Spotify Theme: Error loading state:", chrome.runtime.lastError);
+		}
+		settings = withDefaults(result);
+		updateScheduleTimer();
+		apply();
+	});
+})();

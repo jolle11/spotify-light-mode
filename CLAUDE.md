@@ -4,35 +4,22 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 ## Project Overview
 
-This is a Chrome/Chromium browser extension (Manifest V3) that transforms Spotify's web interface from dark mode to light mode with a user-controllable toggle. The extension applies visual filters to invert colors while preserving the appearance of images, videos, and background images.
+Chrome/Chromium + Firefox (121+) extension (Manifest V3) that re-themes Spotify's web player (light, dark, sepia, high contrast, vintage) using CSS filters, preserving images, videos and background images.
 
 ## Architecture
 
-The extension uses Manifest V3 with three main components:
+- **shared.js**: `globalThis.ThemeCore` — theme list, setting defaults, `withDefaults`, `resolveTheme` (manual / follow system / schedule) and `manualThemeChange`. Loaded before every other script (content script list, popup `<script>`, `importScripts` in the Chrome service worker, `background.scripts` in Firefox).
+- **content.js**: IIFE (safe to re-inject; destroys a previous instance via `window.__spotifyThemeInstance`). Reads settings from `chrome.storage.sync` and reacts to `storage.onChanged`, system theme changes and schedule minute ticks. Injects `<style id="spotify-theme-styles">` with the filter on `html` (not `body`, to avoid breaking `position: fixed`). Inline `background-image` elements get the `data-spotify-theme-bg` attribute (MutationObserver, started after `DOMContentLoaded`); the CSS undoes the filter for them. Handles hover preview through a `theme-preview` port from the popup. Reports its effective theme to the background for the per-tab icon.
+- **popup.html/popup.js**: Only writes to storage and re-renders from `storage.onChanged`. Theme grid, follow-system, schedule (light/dark start times), brightness slider, "keep player bar dark", hover preview, shortcut hint.
+- **background.js**: Fills in missing defaults on install/update (never overwrites), re-injects scripts into open tabs, sets icons (global + per tab), keyboard commands (`toggle-theme` Alt+Shift+L, `cycle-theme` Alt+Shift+T) and the Spotify context menu.
 
-### Core Files
+### Settings (`chrome.storage.sync`)
 
-- **manifest.json**: Manifest V3 configuration with permissions for `storage` and `tabs`, and host permissions for `https://open.spotify.com/*`
-- **content.js**: Runs at `document_start` on Spotify pages. Dynamically injects CSS for light mode and uses a MutationObserver to correct background-image elements
-- **popup.html/popup.js**: User interface with a toggle switch. Manages user preference via `chrome.storage.sync` and sends messages to content scripts
-- **background.js**: Service worker that initializes default state (enabled by default) and optionally updates extension icon based on toggle state
-- **light-mode.css**: Static CSS file (currently not actively used; CSS is injected dynamically by content.js)
+`selectedTheme`, `lastLightTheme`, `useSystemTheme`, `scheduleEnabled`, `scheduleLightStart`, `scheduleDarkStart`, `brightness` (70–130), `keepPlayerDark`. Follow-system and schedule are mutually exclusive; choosing a theme manually disables both.
 
-### State Management Flow
+### Filter notes
 
-1. **Initial load**: `background.js` sets `lightModeEnabled: true` in `chrome.storage.sync` on install
-2. **Content script**: Reads storage on page load and applies/removes light mode accordingly
-3. **User toggle**: `popup.js` updates storage and sends `toggleLightMode` message to all Spotify tabs
-4. **Persistence**: User preference persists across browser sessions via `chrome.storage.sync`
-
-### Light Mode Implementation
-
-The light mode effect is achieved through CSS filters dynamically injected into the page:
-- A `<style>` element with ID `spotify-light-mode-styles` is injected into `<head>`
-- Body receives `filter: invert(1) hue-rotate(180deg)` to convert dark theme to light
-- Images and videos get the same filter to reverse the inversion
-- Elements with inline `background-image` styles are detected via MutationObserver and get individual filter corrections applied
-- A class `spotify-lm-corrected` tracks which elements have been corrected
+Child filters must undo the page filter in reverse order (e.g. page `invert hue-rotate contrast saturate brightness(b)` → media `brightness(1/b) saturate⁻¹ contrast⁻¹ hue-rotate invert`). Sepia cannot be undone, so sepia/vintage don't correct media and "keep player dark" only works on inverted themes.
 
 ## Development Workflow
 
@@ -55,14 +42,6 @@ After modifying files:
 
 1. Load extension and navigate to Spotify
 2. Click extension icon to open popup
-3. Toggle the switch on/off to verify immediate visual changes
+3. Pick themes / toggle options to verify immediate visual changes
 4. Reload Spotify tab to verify state persists
-5. Check console logs for "Spotify Light Mode content script loaded"
-
-## Key Technical Details
-
-- **Dynamic CSS injection**: CSS is injected/removed programmatically rather than loaded as a static file, enabling instant toggle without page reload
-- **MutationObserver**: Continuously monitors DOM for new elements with `background-image` inline styles and applies filter corrections
-- **Chrome Storage API**: Uses `chrome.storage.sync` for cross-device synchronization of user preference
-- **Messaging**: `chrome.tabs.sendMessage()` communicates toggle state changes from popup to content scripts
-- **Default state**: Extension is enabled by default (`lightModeEnabled !== false`)
+5. Test hover preview, keyboard shortcuts and the right-click menu on Spotify

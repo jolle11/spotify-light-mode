@@ -59,10 +59,6 @@
 		"message": "Error",
 		"description": "Mensaje de estado cuando hay un error"
 	},
-	"statusNoTabs": {
-		"message": "No hay pestañas de Spotify abiertas",
-		"description": "Mensaje de estado cuando no hay pestañas de Spotify"
-	},
 	"statusLoading": {
 		"message": "Cargando...",
 		"description": "Mensaje de estado mientras carga"
@@ -74,5 +70,47 @@
 	"statusSystemThemeActive": {
 		"message": "Usando",
 		"description": "Prefijo para indicador de tema del sistema mostrando el tema actual"
+	},
+	"scheduleLabel": {
+		"message": "Programar horario"
+	},
+	"scheduleLightStartLabel": {
+		"message": "Claro desde"
+	},
+	"scheduleDarkStartLabel": {
+		"message": "Oscuro desde"
+	},
+	"statusSchedule": {
+		"message": "Siguiendo horario ✓"
+	},
+	"statusScheduleActive": {
+		"message": "Horario"
+	},
+	"brightnessLabel": {
+		"message": "Brillo"
+	},
+	"keepPlayerDarkLabel": {
+		"message": "Reproductor oscuro"
+	},
+	"keepPlayerDarkHint": {
+		"message": "Solo aplica a los temas Claro y Alto contraste"
+	},
+	"shortcutToggle": {
+		"message": "alternar"
+	},
+	"shortcutCycle": {
+		"message": "siguiente tema"
+	},
+	"shortcutConfigure": {
+		"message": "Atajos"
+	},
+	"contextMenuTitle": {
+		"message": "Tema de Spotify"
+	},
+	"commandToggle": {
+		"message": "Alternar entre tema oscuro y claro"
+	},
+	"commandCycle": {
+		"message": "Cambiar al siguiente tema"
 	}
 }

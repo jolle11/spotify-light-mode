@@ -1,13 +1,13 @@
 {
   "manifest_version": 3,
   "name": "__MSG_extensionName__",
-  "version": "2.1",
+  "version": "2.2",
   "description": "__MSG_extensionDescription__",
   "default_locale": "en",
   "permissions": [
     "storage",
-    "tabs",
-    "scripting"
+    "scripting",
+    "contextMenus"
   ],
   "host_permissions": [
     "https://open.spotify.com/*"
@@ -27,13 +27,30 @@
     }
   },
   "background": {
-    "service_worker": "background.js"
+    "service_worker": "background.js",
+    "scripts": ["shared.js", "background.js"]
   },
   "content_scripts": [
     {
       "matches": ["https://open.spotify.com/*"],
-      "js": ["content.js"],
+      "js": ["shared.js", "content.js"],
       "run_at": "document_start"
     }
-  ]
+  ],
+  "commands": {
+    "toggle-theme": {
+      "suggested_key": { "default": "Alt+Shift+L" },
+      "description": "__MSG_commandToggle__"
+    },
+    "cycle-theme": {
+      "suggested_key": { "default": "Alt+Shift+T" },
+      "description": "__MSG_commandCycle__"
+    }
+  },
+  "browser_specific_settings": {
+    "gecko": {
+      "id": "spotify-light-mode@jolle11",
+      "strict_min_version": "121.0"
+    }
+  }
 }
